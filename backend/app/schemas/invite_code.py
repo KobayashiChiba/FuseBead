@@ -17,6 +17,6 @@ class InviteCodeResponse(BaseModel):
     created_by: str
     used_by: Optional[int] = None
     used_at: Optional[datetime] = None
-    created_at: datetime
+    created_at: Optional[datetime] = None  # 个别旧数据可能为 null
 
     model_config = {"from_attributes": True}

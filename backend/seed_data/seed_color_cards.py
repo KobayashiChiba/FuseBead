@@ -11,6 +11,15 @@ from pathlib import Path
 # 确保 models 可 import
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "app"))
 
+# 导入所有 model 确保 SQLAlchemy 关系解析完整
+import models  # noqa: E402
+from models.invite_code import InviteCode  # noqa: E402
+from models.user import User  # noqa: E402
+from models.user_settings import UserSetting  # noqa: E402
+from models.color_card import ColorCard  # noqa: E402
+from models.folder import Folder  # noqa: E402
+from models.project import BeadProject, ProjectGrid, ProjectProgress  # noqa: E402
+
 # 注意：后面写 core/database.py 后，这里换成 from core.database import SessionLocal
 # 当前先用原始 SQLite 直连验证
 
@@ -29,8 +38,6 @@ def load_card(filename):
 
 def seed(db_session):
     """检查并导入缺失的预置色卡"""
-    from models.color_card import ColorCard
-
     imported = 0
     for card_info in CARDS:
         existing = db_session.query(ColorCard).filter(

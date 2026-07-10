@@ -15,7 +15,7 @@ class InviteCode(Base):
     used_at = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
-    user = relationship("User", back_populates="invite_code", foreign_keys=[used_by])
+    user = relationship("User", foreign_keys=[used_by], uselist=False)
 
     def __repr__(self):
         return f"<InviteCode {self.code}>"
