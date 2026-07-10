@@ -2,31 +2,18 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Optional, Any
+from typing import Optional
 
 from pydantic import BaseModel, Field
-
-
-# ── 编辑嵌套结构 ──
-
-class GridCellUpdate(BaseModel):
-    row: int
-    col: int
-    new_color: str = Field(min_length=1, max_length=16)
-
-
-class ColorReplace(BaseModel):
-    old_color: str = Field(min_length=1, max_length=16)
-    new_color: str = Field(min_length=1, max_length=16)
 
 
 # ── 请求体 ──
 
 class ProjectUpdate(BaseModel):
+    """编辑项目：前端处理好 grid_data 后直接传完整数组，后端只存不处理"""
     name: Optional[str] = Field(default=None, min_length=1, max_length=128)
     folder_id: Optional[int] = None
-    grid_update: Optional[GridCellUpdate] = None
-    color_replace: Optional[ColorReplace] = None
+    grid_data: Optional[list[list[str]]] = None  # 完整二维色号表，替换整个网格
 
 
 # ── 响应体 ──

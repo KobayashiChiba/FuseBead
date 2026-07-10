@@ -104,14 +104,13 @@ def update_project(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """编辑项目：基本信息 / 单格改色 / 全局替换"""
+    """编辑项目：基本信息 / 替换完整网格数据（前端负责单格改色和全局替换逻辑）"""
     project = db.query(BeadProject).filter(
         BeadProject.id == project_id, BeadProject.user_id == current_user.id
     ).first()
     if not project:
         raise HTTPException(status_code=404, detail="项目不存在")
 
-    # 基本信息更新
     if body.name is not None:
         project.name = body.name
     if body.folder_id is not None:
@@ -122,23 +121,11 @@ def update_project(
             raise HTTPException(status_code=404, detail="目标图库不存在")
         project.folder_id = body.folder_id
 
-    # 单格改色
-    if body.grid_update and project.grid:
-        grid_data = project.grid.grid_data
-        gu = body.grid_update
-        if 0 <= gu.row < project.grid_rows and 0 <= gu.col < project.grid_cols:
-            grid_data[gu.row][gu.col] = gu.new_color
-            project.grid.grid_data = grid_data
-
-    # 全局替换
-    if body.color_replace and project.grid:
-        cr = body.color_replace
-        grid_data = project.grid.grid_data
-        for r in range(project.grid_rows):
-            for c in range(project.grid_cols):
-                if grid_data[r][c] == cr.old_color:
-                    grid_data[r][c] = cr.new_color
-        project.grid.grid_data = grid_data
+    # 前端已完成编辑，直接替换整个网格
+    if body.grid_data is not None and project.grid:
+        project.grid.grid_data = body.grid_data
+        project.grid_rows = len(body.grid_data)
+        project.grid_cols = len(body.grid_data[0]) if body.grid_data else 0
 
     db.commit()
     db.refresh(project)
