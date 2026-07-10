@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>图片转换 - 拼豆图片识别工具</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<!-- ====== Header ====== -->
+<header class="header" id="pageHeader">
+    <div class="header-inner">
+        <h1>🧩 拼豆识别</h1>
+        <span class="subtitle">图片转换</span>
+    </div>
+</header>
+
+<!-- ====== Step Indicators ====== -->
+<div class="step-indicators" id="stepIndicators">
+    <div class="step-dot active" data-step="1">
+        <span class="circle">1</span>
+        <span class="label">上传</span>
+    </div>
+    <span class="step-line" data-between="1-2"></span>
+    <div class="step-dot" data-step="2">
+        <span class="circle">2</span>
+        <span class="label">裁剪</span>
+    </div>
+    <span class="step-line" data-between="2-3"></span>
+    <div class="step-dot" data-step="3">
+        <span class="circle">3</span>
+        <span class="label">定位</span>
+    </div>
+    <span class="step-line" data-between="3-4"></span>
+    <div class="step-dot" data-step="4">
+        <span class="circle">4</span>
+        <span class="label">识别</span>
+    </div>
+</div>
+
+<!-- ====== Container (Steps 1, 2, 4) ====== -->
+<div class="container" id="mainContainer">
+
+    <!-- Step 1: Upload -->
+    <div class="step-card active" id="step1">
+        <h2>📤 上传图片</h2>
+        <p class="step-desc">选择一张需要转换的图片</p>
+
+        <div class="upload-zone" id="uploadZone">
+            <div class="icon">📁</div>
+            <div class="hint">点击或拖拽图片到此处</div>
+            <div class="sub-hint">支持 JPG / PNG / WebP / BMP，最大 50MB</div>
+            <input type="file" id="fileInput" accept="image/*">
+        </div>
+
+        <div class="preview-wrap" id="previewWrap">
+            <img id="previewImg" alt="预览">
+            <div class="file-info" id="fileInfo"></div>
+            <div class="btn-group center">
+                <button class="btn btn-outline" onclick="resetUpload()">重新选择</button>
+                <button class="btn btn-primary" onclick="goToStep(2)">下一步：裁剪</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 2: Crop -->
+    <div class="step-card" id="step2">
+        <h2>✂️ 裁剪区域</h2>
+        <p class="step-desc">裁剪出需要转换的图片区域</p>
+
+        <div class="crop-container">
+            <img id="cropImage" alt="裁剪">
+        </div>
+
+        <div class="btn-group between">
+            <button class="btn btn-outline" onclick="goToStep(1)">上一步</button>
+            <div>
+                <button class="btn btn-outline btn-sm" onclick="resetCrop()" style="margin-right:8px;">重置</button>
+                <button class="btn btn-primary" id="cropBtn" onclick="doCrop()">确认裁剪</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 4: Identify -->
+    <div class="step-card" id="step4">
+        <h2>🔍 正在识别</h2>
+        <p class="step-desc">选择识别算法并开始转换</p>
+
+        <!-- Algorithm Selection -->
+        <div class="algo-select" id="algoSelect">
+            <div class="algo-card active" data-mode="dominant" id="algoDominant" onclick="selectAlgo('dominant')">
+                <img class="algo-icon" src="{{ url_for('static', filename='image/color_main.png') }}" alt="主色识别">
+                <div class="algo-info">
+                    <div class="algo-title">主色识别模式</div>
+                    <div class="algo-desc">提取每个格子中最主要的颜色，适合像素网格图片</div>
+                </div>
+                <span class="algo-check">✓</span>
+            </div>
+            <div class="algo-card" data-mode="average" id="algoAverage" onclick="selectAlgo('average')">
+                <img class="algo-icon" src="{{ url_for('static', filename='image/color_avg.png') }}" alt="色彩平均">
+                <div class="algo-info">
+                    <div class="algo-title">色彩平均模式</div>
+                    <div class="algo-desc">在HSL色域 计算每个格子内所有像素的平均颜色，适合普通图片</div>
+                </div>
+                <span class="algo-check">✓</span>
+            </div>
+        </div>
+
+        <div class="btn-group between">
+            <button class="btn btn-outline" id="cancelRecogBtn" onclick="cancelRecognition()">上一步</button>
+            <button class="btn btn-primary" id="startRecogBtn" onclick="startRecognition()">开始识别</button>
+        </div>
+
+        <!-- Progress (hidden initially) -->
+        <div class="progress-wrap" id="progressWrap" style="display:none;">
+            <div class="progress-bar-outer">
+                <div class="progress-bar-inner" id="progressBar"></div>
+            </div>
+            <div class="progress-status" id="progressStatus">准备中...</div>
+
+            <div class="progress-result" id="progressResult">
+                <p style="font-size:16px;font-weight:500;margin-bottom:8px;">✅ 识别完成！</p>
+                <p id="resultSummary" style="font-size:14px;color:var(--text-secondary);"></p>
+                <div class="btn-group center mt-16" id="resultBtnGroup" style="display:none;">
+                    <button class="btn btn-primary" id="viewBtn" onclick="goToUsePage()">查看图纸</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<!-- ================================================================== -->
+<!--  Step 3: Position — Full Viewport Overlay (工作区 + 工具栏)          -->
+<!-- ================================================================== -->
+<div class="convert-position-overlay" id="positionOverlay" style="display:none;">
+
+    <!-- Toast for position step -->
+    <div class="toast" id="posToast"></div>
+
+    <div class="view-layout">
+
+        <!-- ═══ 左侧：工作区 ═══ -->
+        <div class="workspace" id="convertWorkspace">
+            <div class="workspace-title">图片定位</div>
+            <canvas id="positionCanvas"></canvas>
+
+            <!-- 位置信息浮层 -->
+            <div class="cell-info-panel" id="posInfoPanel">
+                <div id="posInfoContent"></div>
+            </div>
+        </div>
+
+        <!-- ═══ 右侧：工具栏 ═══ -->
+        <div class="toolbar" id="positionToolbar">
+
+            <!-- ── 区域1：尺寸控制 ── -->
+            <div class="toolbar-zone toolbar-zone-1 pos-zone-size">
+                <div class="size-control-wrap">
+                    <div class="size-input-area">
+                        <input type="number" class="size-input" id="cellSizeInput"
+                               min="5" max="100" value="20" step="1"
+                               title="网格单元尺寸（像素）">
+                    </div>
+                    <div class="size-btn-area">
+                        <button class="size-btn size-btn-plus" id="cellSizePlus"
+                                title="增加1像素">+</button>
+                        <button class="size-btn size-btn-minus" id="cellSizeMinus"
+                                title="减少1像素">−</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ── 区域2：模式切换 ── -->
+            <div class="toolbar-zone pos-zone-mode" style="height:50px;flex-shrink:0;">
+                <div class="mode-toggle-wrap">
+                    <span class="mode-label mode-label-left" id="modeLabelNine">九宫格</span>
+                    <label class="switch">
+                        <input type="checkbox" id="modeSwitch">
+                        <span class="slider"></span>
+                    </label>
+                    <span class="mode-label mode-label-right" id="modeLabelGrid">网格</span>
+                </div>
+            </div>
+
+            <!-- ── 区域3：微调工具 ── -->
+            <div class="toolbar-zone pos-zone-nudge">
+                <div class="nudge-cross">
+                    <button class="nudge-btn nudge-up" id="nudgeUp" title="上移1像素">▲</button>
+                    <div class="nudge-row">
+                        <button class="nudge-btn nudge-left" id="nudgeLeft" title="左移1像素">◀</button>
+                        <span class="nudge-label">微调</span>
+                        <button class="nudge-btn nudge-right" id="nudgeRight" title="右移1像素">▶</button>
+                    </div>
+                    <button class="nudge-btn nudge-down" id="nudgeDown" title="下移1像素">▼</button>
+                </div>
+            </div>
+
+            <!-- ── 区域4：放大镜 ── -->
+            <div class="toolbar-zone pos-zone-magnifier">
+                <div class="magnifier-wrap">
+                    <canvas id="magnifierCanvas"></canvas>
+                </div>
+            </div>
+
+            <!-- ── 区域5：空白占位 ── -->
+            <div class="toolbar-zone pos-zone-spacer"></div>
+
+            <!-- ── 区域6：流程控制 ── -->
+            <div class="toolbar-zone pos-zone-actions">
+                <button class="btn btn-outline pos-action-btn" id="posPrevBtn">上一步</button>
+                <button class="btn btn-primary pos-action-btn" id="posNextBtn">下一步</button>
+            </div>
+
+        </div><!-- /toolbar -->
+
+    </div><!-- /view-layout -->
+
+</div><!-- /positionOverlay -->
+
+<!-- ====== Scripts ====== -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
+<script src="{{ url_for('static', filename='js/common.js') }}"></script>
+<script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+<script src="{{ url_for('static', filename='js/convert.js') }}"></script>
+<script>requireAuth();</script>
+</body>
+</html>

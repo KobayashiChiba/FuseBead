@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>编辑 - 拼豆图片识别工具</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<header class="header">
+    <div class="header-inner">
+        <h1>🧩 拼豆识别</h1>
+        <span class="subtitle">图片 → 拼豆图纸</span>
+    </div>
+</header>
+
+<div class="container">
+    <div class="step-card active placeholder-page">
+        <div class="placeholder-icon">🚧</div>
+        <div class="placeholder-title">功能开发中</div>
+        <div class="placeholder-desc">项目编辑功能正在开发中，敬请期待！</div>
+        <a href="/" class="btn btn-outline">返回首页</a>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/common.js') }}"></script>
+<script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+<script>
+requireAuth();
+console.log('FuseBead 编辑页已加载');
+</script>
+</body>
+</html>

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>加载项目 - 拼豆图片识别工具</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<header class="header">
+    <div class="header-inner">
+        <h1>🧩 拼豆识别</h1>
+        <span class="subtitle">图片 → 拼豆图纸</span>
+    </div>
+</header>
+
+<div class="container">
+    <div class="step-card active">
+        <div class="projects-header">
+            <div>
+                <h2>📂 已保存的项目</h2>
+                <p class="step-desc" style="margin-bottom:0;">选择要加载的拼豆项目</p>
+            </div>
+            <div style="display:flex;gap:8px;">
+                <button class="btn btn-outline btn-sm" onclick="loadProjects()">刷新</button>
+                <a href="/" class="btn btn-outline btn-sm">返回首页</a>
+            </div>
+        </div>
+
+        <div class="projects-grid" id="projectList"></div>
+
+        <p id="projectEmpty" style="text-align:center;color:var(--text-secondary);padding:40px 0;display:none;">
+            暂无保存的项目
+        </p>
+        <p id="projectLoading" style="text-align:center;color:var(--text-secondary);padding:40px 0;">
+            加载中...
+        </p>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/common.js') }}"></script>
+<script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+<script src="{{ url_for('static', filename='js/projects.js') }}"></script>
+<script>requireAuth();</script>
+</body>
+</html>

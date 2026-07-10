@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>查看图纸 - 拼豆图片识别工具</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body class="view-page">
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<!-- 整体左右布局容器 -->
+<div class="view-layout">
+
+    <!-- 左侧：工作区 -->
+    <div class="workspace" id="workspace">
+        <div class="workspace-title">拼豆图纸</div>
+        <canvas id="beadCanvas"></canvas>
+        <!-- 色块信息浮层 -->
+        <div class="cell-info-panel" id="cellInfoPanel">
+            <button class="close-info" onclick="closeCellInfo()">&#10005;</button>
+            <div id="cellInfoContent"></div>
+        </div>
+    </div>
+
+    <!-- 右侧：工具栏 -->
+    <div class="toolbar" id="toolbar">
+
+        <!-- 区域1：返回首页按钮（右上角） -->
+        <div class="toolbar-zone toolbar-zone-1">
+            <a href="/" class="btn btn-outline btn-sm">返回首页</a>
+        </div>
+
+        <!-- 区域2：颜色统计 + 清除高亮按钮 -->
+        <div class="toolbar-zone toolbar-zone-2">
+            <div class="color-stats-label">颜色统计</div>
+            <div class="color-stats" id="colorStats"></div>
+            <div class="clear-highlight-wrap">
+                <button class="btn btn-outline btn-sm" onclick="centerWorkspace()">恢复居中</button>
+                <button class="btn btn-outline btn-sm" onclick="clearHighlights()">清除高亮</button>
+            </div>
+        </div>
+
+        <!-- 区域3：缩放条 -->
+        <div class="toolbar-zone toolbar-zone-3">
+            <div class="zoom-control">
+                <span class="zoom-label">缩放</span>
+                <input type="range" id="zoomSlider" min="0" max="100" value="0" disabled>
+                <span class="zoom-value" id="zoomValue">100%</span>
+            </div>
+        </div>
+
+        <!-- 区域4：保存项目 + 导出图片按钮 -->
+        <div class="toolbar-zone toolbar-zone-4">
+            <button class="btn btn-primary btn-sm" onclick="showSaveDialog()">保存项目</button>
+            <button class="btn btn-success btn-sm" id="exportBtn" onclick="exportImage()">导出图片</button>
+        </div>
+
+    </div>
+
+</div>
+
+<!-- 加载中 -->
+<div class="view-overlay" id="loadingOverlay">
+    <div class="view-overlay-content">
+        <div class="spinner"></div>
+        <p>正在加载拼豆图纸...</p>
+    </div>
+</div>
+
+<!-- 错误 -->
+<div class="view-overlay" id="errorOverlay" style="display:none;">
+    <div class="view-overlay-content">
+        <p class="error-msg" id="errorMsg"></p>
+        <a href="/" class="btn btn-primary">返回首页</a>
+    </div>
+</div>
+
+<!-- 保存项目弹窗 -->
+<div class="modal-overlay" id="saveDialog" style="display:none;">
+    <div class="modal-content">
+        <h3 style="margin-bottom:12px;">保存项目</h3>
+        <div class="form-group">
+            <label for="projectName">项目名称</label>
+            <input class="form-input" type="text" id="projectName" maxlength="100" placeholder="输入项目名称...">
+        </div>
+        <div class="btn-group center">
+            <button class="btn btn-outline" onclick="closeSaveDialog()">取消</button>
+            <button class="btn btn-primary" id="saveConfirmBtn" onclick="doSaveProject()">保存</button>
+        </div>
+        <p id="saveStatus" style="font-size:13px;color:var(--text-secondary);margin-top:8px;text-align:center;"></p>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/common.js') }}"></script>
+<script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+<script src="{{ url_for('static', filename='js/view.js') }}"></script>
+<script>requireAuth();</script>
+</body>
+</html>

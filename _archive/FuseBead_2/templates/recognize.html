@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>拼豆识别 - 拼豆图片识别工具</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.css">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="toast" id="toast"></div>
+
+<header class="header">
+    <div class="header-inner">
+        <h1>🧩 拼豆识别</h1>
+        <span class="subtitle">图片 → 拼豆图纸</span>
+    </div>
+</header>
+
+<!-- Step Indicators (4 steps) -->
+<div class="step-indicators" id="stepIndicators">
+    <div class="step-dot active" data-step="1">
+        <span class="circle">1</span>
+        <span class="label">上传</span>
+    </div>
+    <span class="step-line" data-between="1-2"></span>
+    <div class="step-dot" data-step="2">
+        <span class="circle">2</span>
+        <span class="label">裁剪</span>
+    </div>
+    <span class="step-line" data-between="2-3"></span>
+    <div class="step-dot" data-step="3">
+        <span class="circle">3</span>
+        <span class="label">定位</span>
+    </div>
+    <span class="step-line" data-between="3-4"></span>
+    <div class="step-dot" data-step="4">
+        <span class="circle">4</span>
+        <span class="label">识别</span>
+    </div>
+</div>
+
+<div class="container">
+
+    <!-- Step 1: Upload -->
+    <div class="step-card active" id="step1">
+        <h2>📤 上传图片</h2>
+        <p class="step-desc">选择一张拼豆图纸的照片或扫描件</p>
+
+        <div class="upload-zone" id="uploadZone">
+            <div class="icon">📁</div>
+            <div class="hint">点击或拖拽图片到此处</div>
+            <div class="sub-hint">支持 JPG / PNG / WebP / BMP，最大 50MB</div>
+            <input type="file" id="fileInput" accept="image/*">
+        </div>
+
+        <div class="preview-wrap" id="previewWrap">
+            <img id="previewImg" alt="预览">
+            <div class="file-info" id="fileInfo"></div>
+            <div class="btn-group center">
+                <button class="btn btn-outline" onclick="resetUpload()">重新选择</button>
+                <button class="btn btn-primary" onclick="goToStep(2)">下一步：裁剪</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 2: Crop -->
+    <div class="step-card" id="step2">
+        <h2>✂️ 裁剪区域</h2>
+        <p class="step-desc">裁剪出需要转换成拼豆图的区域</p>
+
+        <div class="crop-container">
+            <img id="cropImage" alt="裁剪">
+        </div>
+
+        <div class="btn-group between">
+            <button class="btn btn-outline" onclick="goToStep(1)">上一步</button>
+            <div>
+                <button class="btn btn-outline btn-sm" onclick="resetCrop()" style="margin-right:8px;">重置</button>
+                <button class="btn btn-primary" id="cropBtn" onclick="doCrop()">确认裁剪</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Step 3: Position -->
+    <div class="step-card" id="step3">
+        <h2>📍 网格定位</h2>
+        <p class="step-desc">输入拼豆网格的行列数</p>
+
+        <div class="pos-grid-layout">
+            <!-- 图片预览区域 -->
+            <div class="grid-preview-area">
+                <div class="grid-preview-canvas-wrap" id="gridPreviewWrap">
+                    <canvas id="gridPreviewCanvas"></canvas>
+                </div>
+                <div class="grid-preview-zoom">
+                    <button class="btn btn-sm btn-outline zoom-btn" id="zoomOutBtn" onclick="zoomPreview(-0.2)" title="缩小">−</button>
+                    <input type="range" id="zoomSlider" min="0.2" max="10" step="0.1" value="1" oninput="setZoomPreview(parseFloat(this.value))" title="缩放比例">
+                    <button class="btn btn-sm btn-outline zoom-btn" id="zoomInBtn" onclick="zoomPreview(0.2)" title="放大">+</button>
+                    <span class="zoom-pct" id="zoomPctLabel">100%</span>
+                </div>
+            </div>
+            <!-- 行列数输入区域 -->
+            <div class="grid-input-area">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="gridRows">行数 (Rows)</label>
+                        <input class="form-input" type="number" id="gridRows" min="1" max="500" value="" placeholder="输入行数">
+                    </div>
+                    <div class="form-group">
+                        <label for="gridCols">列数 (Cols)</label>
+                        <input class="form-input" type="number" id="gridCols" min="1" max="500" value="" placeholder="输入列数">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="mergeThreshold">颜色合并阈值 (1-100, 默认25)</label>
+                    <input class="form-input" type="number" id="mergeThreshold" min="1" max="100" value="25">
+                </div>
+                <p style="font-size:13px;color:var(--text-secondary);">
+                    提示：图片外围需要有一圈坐标边框（程序会自动裁剪边框区域）
+                </p>
+            </div>
+        </div>
+
+        <div class="btn-group between">
+            <button class="btn btn-outline" onclick="goToStep(2)">上一步</button>
+            <button class="btn btn-primary" id="posNextBtn" onclick="startRecognition()">下一步：识别</button>
+        </div>
+    </div>
+
+    <!-- Step 4: Recognize -->
+    <div class="step-card" id="step4">
+        <h2>🔍 正在识别</h2>
+        <p class="step-desc">后台正在分析图片中的拼豆颜色</p>
+
+        <div class="progress-wrap">
+            <div class="progress-bar-outer">
+                <div class="progress-bar-inner" id="progressBar"></div>
+            </div>
+            <div class="progress-status" id="progressStatus">准备中...</div>
+
+            <div class="progress-result" id="progressResult">
+                <p style="font-size:16px;font-weight:500;margin-bottom:8px;">✅ 识别完成！</p>
+                <p id="resultSummary" style="font-size:14px;color:var(--text-secondary);"></p>
+                <div class="btn-group center mt-16" id="resultBtnGroup" style="display:none;">
+                    <button class="btn btn-primary" id="viewBtn" onclick="goToUsePage()">查看图纸</button>
+                </div>
+            </div>
+        </div>
+
+        <div class="btn-group between" style="margin-top:0;">
+            <button class="btn btn-outline" id="cancelRecogBtn" onclick="cancelRecognition()">返回</button>
+        </div>
+    </div>
+
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/cropperjs/1.6.2/cropper.min.js"></script>
+<script src="{{ url_for('static', filename='js/common.js') }}"></script>
+<script src="{{ url_for('static', filename='js/auth.js') }}"></script>
+<script src="{{ url_for('static', filename='js/recognize.js') }}"></script>
+<script>requireAuth();</script>
+</body>
+</html>
