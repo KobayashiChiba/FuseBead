@@ -42,17 +42,17 @@
       <!-- ═══════ Step 2: Crop ═══════ -->
       <div :class="['step-card', { active: currentStep === 1 }]">
         <h2>✂️ 裁剪区域</h2>
-        <p class="step-desc">拖拽选区框裁剪出包含网格的图纸区域</p>
+        <p class="step-desc">拖拽裁剪框选择包含网格的图纸区域</p>
 
-        <div class="crop-container" ref="cropContainerRef">
-          <canvas ref="cropCanvasRef" @mousedown="cropMouseDown" @mousemove="cropMouseMove" @mouseup="cropMouseUp" @mouseleave="cropMouseUp"></canvas>
+        <div class="crop-container">
+          <img ref="cropImgRef" alt="裁剪" style="max-width:100%;display:block;" />
         </div>
 
         <div class="btn-group between mt-16">
           <button class="btn btn-outline" @click="goStep(0)">上一步</button>
           <div>
             <button class="btn btn-outline btn-sm" @click="resetCrop" style="margin-right:8px">重置</button>
-            <button class="btn btn-primary" @click="doCrop" :disabled="!cropBox.w || !cropBox.h">确认裁剪</button>
+            <button class="btn btn-primary" @click="doCrop">确认裁剪</button>
           </div>
         </div>
       </div>
@@ -258,73 +258,47 @@ function resetUpload() {
   fileInputRef.value.value = ''
 }
 
-// ═══════ Step 2: Crop ═══════
-const cropCanvasRef = ref(null)
-const cropContainerRef = ref(null)
-const cropBox = reactive({ x: 0, y: 0, w: 0, h: 0 })
-let cropDragging = false, cropStart = {}, cropImg = null, cropScale = 1, cropOffX = 0, cropOffY = 0
+// ═══════ Step 2: Crop (Cropper.js) ═══════
+import Cropper from 'cropperjs'
+const cropImgRef = ref(null)
+let cropper = null
 
 function initCrop() {
-  if (!state.originalImg) return
-  cropImg = state.originalImg
-  cropBox.x = 0; cropBox.y = 0; cropBox.w = 0; cropBox.h = 0
-  nextTick(() => drawCrop())
-}
-
-function drawCrop() {
-  const canvas = cropCanvasRef.value
-  if (!canvas || !cropImg) return
-  const container = cropContainerRef.value
-  const cw = container.clientWidth; const ch = 360
-  canvas.width = cw; canvas.height = ch
-  const ctx = canvas.getContext('2d')
-  ctx.fillStyle = '#333'; ctx.fillRect(0, 0, cw, ch)
-
-  const scale = Math.min((cw-20) / cropImg.width, (ch-20) / cropImg.height)
-  const iw = cropImg.width * scale; const ih = cropImg.height * scale
-  const ix = (cw - iw) / 2; const iy = (ch - ih) / 2
-  cropScale = scale; cropOffX = ix; cropOffY = iy
-  ctx.drawImage(cropImg, 0, 0, cropImg.width, cropImg.height, ix, iy, iw, ih)
-
-  if (cropBox.w > 0 && cropBox.h > 0) {
-    ctx.strokeStyle = '#FFF'; ctx.lineWidth = 2
-    ctx.setLineDash([6, 3])
-    ctx.strokeRect(ix + cropBox.x * scale, iy + cropBox.y * scale, cropBox.w * scale, cropBox.h * scale)
-    ctx.setLineDash([])
+  if (!state.originalSrc) return
+  const img = cropImgRef.value
+  if (!img) return
+  if (cropper) { cropper.destroy(); cropper = null }
+  img.src = state.originalSrc
+  img.onload = () => {
+    cropper = new Cropper(img, {
+      viewMode: 1,
+      dragMode: 'crop',
+      aspectRatio: NaN,
+      autoCropArea: 0.8,
+      cropBoxMovable: true,
+      cropBoxResizable: true,
+      toggleDragModeOnDblclick: false,
+    })
   }
 }
 
-function cropMouseDown(e) {
-  cropDragging = true
-  const rect = cropCanvasRef.value.getBoundingClientRect()
-  cropStart = { x: (e.clientX - rect.left - cropOffX) / cropScale, y: (e.clientY - rect.top - cropOffY) / cropScale }
-  cropBox.x = Math.max(0, cropStart.x); cropBox.y = Math.max(0, cropStart.y)
-  cropBox.w = 0; cropBox.h = 0
-}
-function cropMouseMove(e) {
-  if (!cropDragging) return
-  const rect = cropCanvasRef.value.getBoundingClientRect()
-  const cx = (e.clientX - rect.left - cropOffX) / cropScale
-  const cy = (e.clientY - rect.top - cropOffY) / cropScale
-  cropBox.w = Math.max(1, cx - cropStart.x); cropBox.h = Math.max(1, cy - cropStart.y)
-  drawCrop()
-}
-function cropMouseUp() { cropDragging = false; drawCrop() }
-function resetCrop() { cropBox.x = 0; cropBox.y = 0; cropBox.w = 0; cropBox.h = 0; drawCrop() }
+function resetCrop() { if (cropper) cropper.reset() }
 
 function doCrop() {
-  if (!cropImg || cropBox.w <= 0 || cropBox.h <= 0) { toast('请拖拽选区框'); return }
-  const x = Math.round(cropStart.x), y = Math.round(cropStart.y)
-  const w = Math.round(cropBox.w), h = Math.round(cropBox.h)
+  if (!cropper) { toast('请等待图片加载完成'); return }
+  const data = cropper.getData()
+  const x = Math.round(data.x), y = Math.round(data.y)
+  const w = Math.round(data.width), h = Math.round(data.height)
   const c = document.createElement('canvas')
   c.width = w; c.height = h
-  c.getContext('2d').drawImage(cropImg, x, y, w, h, 0, 0, w, h)
+  c.getContext('2d').drawImage(state.originalImg, x, y, w, h, 0, 0, w, h)
   state.croppedSrc = c.toDataURL()
   state.cropX = x; state.cropY = y; state.cropW = w; state.cropH = h
   const img = new Image()
   img.onload = () => { state.croppedImg = img }
   img.src = state.croppedSrc
   toast(`裁剪完成 (${w}×${h})`)
+  goStep(2)
 }
 
 // ═══════ Step 3: Position ═══════
