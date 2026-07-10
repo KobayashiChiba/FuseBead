@@ -1,6 +1,10 @@
 """项目路由 — 创建 / 识别 / 编辑 / 删除 / 进度 / 渲染"""
+import json
+import queue
+import threading
+
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 from sqlalchemy.orm import Session
 from pathlib import Path
 
@@ -82,6 +86,87 @@ async def upload_project(
         raise HTTPException(status_code=400, detail=str(e))
 
     return ProjectResponse.model_validate(project)
+
+
+@router.post("/stream")
+async def upload_project_stream(
+    image: UploadFile = File(...),
+    name: str = Form("未命名拼豆图"),
+    folder_id: int | None = Form(None),
+    color_card_id: int = Form(...),
+    ref_x: float = Form(...),
+    ref_y: float = Form(...),
+    cell_size: float = Form(...),
+    mode: str = Form("dominant"),
+    merge_threshold: int = Form(25),
+    crop_x: float = Form(0),
+    crop_y: float = Form(0),
+    crop_w: float = Form(0),
+    crop_h: float = Form(0),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """新建项目（SSE 流式进度版）：上传图片 + 裁剪 + 参考格 + 算法参数 → 识别 → 保存
+
+    返回 text/event-stream，每条事件格式:
+        data: {"progress": 50, "message": "正在逐格提取主色... (10/50)"}\n\n
+    最后一条:
+        data: {"progress": 100, "done": true, "project": {...}}\n\n
+    """
+    if image.content_type and not image.content_type.startswith("image/"):
+        raise HTTPException(status_code=400, detail="仅支持图片文件")
+
+    if folder_id is not None:
+        folder = db.query(Folder).filter(
+            Folder.id == folder_id, Folder.user_id == current_user.id
+        ).first()
+        if not folder:
+            raise HTTPException(status_code=404, detail="图库不存在")
+
+    image_bytes = await image.read()
+    ext = Path(image.filename).suffix if image.filename else ".png"
+    crop = {"x": crop_x, "y": crop_y, "w": crop_w, "h": crop_h} if crop_w > 0 and crop_h > 0 else None
+
+    # 用队列在线程间传递进度
+    progress_queue: queue.Queue = queue.Queue()
+
+    def progress_callback(progress, message):
+        progress_queue.put({"progress": progress, "message": message})
+
+    def run_create():
+        try:
+            project = create_project(
+                db=db, user_id=current_user.id, name=name,
+                folder_id=folder_id, color_card_id=color_card_id,
+                image_bytes=image_bytes, image_ext=ext,
+                ref_x=ref_x, ref_y=ref_y, cell_size=cell_size,
+                mode=mode, merge_threshold=merge_threshold, crop=crop,
+                progress_callback=progress_callback,
+            )
+            progress_queue.put({
+                "progress": 100, "done": True,
+                "project": ProjectResponse.model_validate(project).model_dump(mode="json"),
+            })
+        except Exception as e:
+            progress_queue.put({"progress": 0, "error": str(e)})
+
+    def event_stream():
+        worker = threading.Thread(target=run_create, daemon=True)
+        worker.start()
+
+        while True:
+            try:
+                data = progress_queue.get(timeout=300)
+            except queue.Empty:
+                yield f"data: {json.dumps({'progress': 0, 'error': '超时'})}\n\n"
+                break
+
+            yield f"data: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+            if data.get("done") or data.get("error"):
+                break
+
+    return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
 @router.post("/{project_id}/recognize", response_model=ProjectResponse)

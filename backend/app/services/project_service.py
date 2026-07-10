@@ -57,15 +57,22 @@ def create_project(
     mode: str = "dominant",
     merge_threshold: int = 25,
     crop: dict | None = None,
+    progress_callback=None,
 ) -> BeadProject:
     """创建拼豆项目：保存图片 → (裁剪) → 识别色号 → 写入数据库"""
+    def _report(progress, message):
+        if progress_callback:
+            progress_callback(progress, message)
+
     # 1. 保存原图
+    _report(5, '正在保存图片...')
     ext = image_ext.lstrip(".") or "png"
     filename = f"{uuid.uuid4().hex}.{ext}"
     filepath = Path(settings.UPLOAD_DIR) / filename
     filepath.write_bytes(image_bytes)
 
     # 2. 读取 + 裁剪
+    _report(10, '正在读取和裁剪图片...')
     img = _load_and_crop(image_bytes, crop)
 
     # 3. 加载色卡
@@ -74,15 +81,17 @@ def create_project(
         raise ValueError("色卡不存在")
     color_map = _build_color_map(card)
 
-    # 4. 提取色号
+    # 4. 提取色号（extract 内部会通过 progress_callback 报告 15-95 的进度）
     color_codes = extract(
         img, ref_cell=(ref_x, ref_y, cell_size), color_map=color_map,
         merge_threshold=merge_threshold, mode=mode,
+        progress_callback=progress_callback,
     )
     rows = len(color_codes)
     cols = len(color_codes[0]) if rows > 0 else 0
 
     # 5. 保存项目
+    _report(98, '正在保存项目...')
     project = BeadProject(
         user_id=user_id, folder_id=folder_id, name=name,
         source_image=filename, grid_rows=rows, grid_cols=cols,
