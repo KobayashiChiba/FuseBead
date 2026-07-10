@@ -1,0 +1,1 @@
+import{_ as r}from"./_plugin-vue_export-helper-DlAUqK2U.js";import{c as t,t as o,o as c}from"./index-xNgfSHve.js";const a={};function n(e,s){return c(),t("div",null,"Project "+o(e.$route.params.id)+" — 待实现",1)}const _=r(a,[["render",n]]);export{_ as default};

@@ -1,0 +1,1 @@
+import{_ as e}from"./_plugin-vue_export-helper-DlAUqK2U.js";import{c as r,o as t}from"./index-xNgfSHve.js";const c={};function o(n,s){return t(),r("div",null,"Register — 待实现")}const i=e(c,[["render",o]]);export{i as default};
