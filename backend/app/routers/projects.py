@@ -206,6 +206,7 @@ def update_progress(
     return ProgressResponse(color_progress=progress.color_progress)
 
 
+from fastapi.responses import Response
 from pathlib import Path  # noqa: E402
 
 
@@ -215,7 +216,7 @@ def render_project(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """渲染拼豆预览图"""
+    """渲染拼豆预览图（内存流，不写磁盘）"""
     project = db.query(BeadProject).filter(
         BeadProject.id == project_id, BeadProject.user_id == current_user.id
     ).first()
@@ -234,11 +235,6 @@ def render_project(
         for c in card.colors
     } if card else {}
 
-    import tempfile
     img = render_bead_art(project.grid.grid_data, color_map, title=project.name)
-    tmp = tempfile.NamedTemporaryFile(suffix=".png", delete=False)
-    cv2.imwrite(tmp.name, img)
-    tmp.close()
-
-    from fastapi.responses import FileResponse
-    return FileResponse(tmp.name, media_type="image/png", filename=f"{project.name}.png")
+    _, buf = cv2.imencode(".png", img)
+    return Response(content=buf.tobytes(), media_type="image/png")
