@@ -175,89 +175,163 @@ function resetUpload() { state.originalSrc = ''; state.originalImg = null; state
 // ═══════ Step 2: Crop ═══════
 const cropCanvasRef = ref(null)
 const cropStageRef = ref(null)
-let cropImg = null, cropDown = false
-let cropBox = { x: 0, y: 0, w: 0, h: 0 }
-let cropStart = { x: 0, y: 0 }
+let cropImg = null, cropDown = false, cropAction = ''  // '' | 'move' | 8 handle names
+let cropBox = { x: 0, y: 0, w: 0, h: 0 }  // image coords
+let cropStartBox = { x: 0, y: 0, w: 0, h: 0 }
+let cropStartMouse = { x: 0, y: 0 }
+
+const HANDLE_NAMES = ['tl','top','tr','right','br','bottom','bl','left']
+const HANDLE_SIZE = 12
 
 function initCrop() {
   if (!state.originalImg || !cropCanvasRef.value || !cropStageRef.value) return
   cropImg = state.originalImg
-  cropBox = { x: 0, y: 0, w: 0, h: 0 }
+  // 初始裁剪框：覆盖 80% 区域，居中
+  const marginX = cropImg.width * 0.1, marginY = cropImg.height * 0.1
+  cropBox = { x: marginX, y: marginY, w: cropImg.width - marginX * 2, h: cropImg.height - marginY * 2 }
   drawCrop()
+}
+
+function getCanvasParams() {
+  const canvas = cropCanvasRef.value, stage = cropStageRef.value
+  if (!canvas || !stage) return null
+  const cw = stage.clientWidth, ch = Math.min(cw * 0.6, 400)
+  canvas.width = cw; canvas.height = ch
+  const scale = Math.min((cw - 20) / cropImg.width, (ch - 20) / cropImg.height)
+  const iw = cropImg.width * scale, ih = cropImg.height * scale
+  const ix = (cw - iw) / 2, iy = (ch - ih) / 2
+  return { cw, ch, scale, ix, iy, iw, ih }
+}
+
+function getHandlePos(ix, iy, scale) {
+  const bx = ix + cropBox.x * scale, by = iy + cropBox.y * scale
+  const bw = cropBox.w * scale, bh = cropBox.h * scale
+  return {
+    tl:   { x: bx,              y: by },
+    top:  { x: bx + bw / 2,     y: by },
+    tr:   { x: bx + bw,         y: by },
+    right:{ x: bx + bw,         y: by + bh / 2 },
+    br:   { x: bx + bw,         y: by + bh },
+    bottom:{x: bx + bw / 2,     y: by + bh },
+    bl:   { x: bx,              y: by + bh },
+    left: { x: bx,              y: by + bh / 2 },
+  }
+}
+
+function hitTest(mx, my, ix, iy, scale) {
+  const handles = getHandlePos(ix, iy, scale)
+  for (const name of HANDLE_NAMES) {
+    const h = handles[name]
+    if (mx >= h.x - HANDLE_SIZE && mx <= h.x + HANDLE_SIZE && my >= h.y - HANDLE_SIZE && my <= h.y + HANDLE_SIZE) return name
+  }
+  // 检测是否在裁剪框内
+  const bx = ix + cropBox.x * scale, by = iy + cropBox.y * scale
+  const bw = cropBox.w * scale, bh = cropBox.h * scale
+  if (mx >= bx && mx <= bx + bw && my >= by && my <= by + bh) return 'move'
+  return ''
+}
+
+function clampBox() {
+  cropBox.x = Math.max(0, Math.min(cropBox.x, cropImg.width - 10))
+  cropBox.y = Math.max(0, Math.min(cropBox.y, cropImg.height - 10))
+  cropBox.w = Math.max(10, Math.min(cropBox.w, cropImg.width - cropBox.x))
+  cropBox.h = Math.max(10, Math.min(cropBox.h, cropImg.height - cropBox.y))
 }
 
 function drawCrop() {
   const canvas = cropCanvasRef.value
-  const stage = cropStageRef.value
-  if (!canvas || !stage || !cropImg) return
-  const cw = stage.clientWidth
-  const ch = Math.min(cw * 0.6, 400)
-  canvas.width = cw; canvas.height = ch
-  canvas.style.width = cw + 'px'; canvas.style.height = ch + 'px'
+  const params = getCanvasParams()
+  if (!canvas || !params || !cropImg) return
+  const { cw, ch, scale, ix, iy } = params
   const ctx = canvas.getContext('2d')
 
-  // background
   ctx.fillStyle = '#333'; ctx.fillRect(0, 0, cw, ch)
+  ctx.drawImage(cropImg, 0, 0, cropImg.width, cropImg.height, ix, iy, params.iw, params.ih)
 
-  // calc image fit
-  const scale = Math.min((cw - 20) / cropImg.width, (ch - 20) / cropImg.height)
-  const iw = cropImg.width * scale; const ih = cropImg.height * scale
-  const ix = (cw - iw) / 2; const iy = (ch - ih) / 2
-  ctx.drawImage(cropImg, 0, 0, cropImg.width, cropImg.height, ix, iy, iw, ih)
+  const bx = ix + cropBox.x * scale, by = iy + cropBox.y * scale
+  const bw = cropBox.w * scale, bh = cropBox.h * scale
 
-  canvas._imgScale = scale
-  canvas._imgX = ix
-  canvas._imgY = iy
+  // dim overlay outside crop box
+  ctx.fillStyle = 'rgba(0,0,0,0.35)'
+  ctx.fillRect(0, 0, cw, by); ctx.fillRect(0, by, bx, bh)
+  ctx.fillRect(bx + bw, by, cw - bx - bw, bh); ctx.fillRect(0, by + bh, cw, ch - by - bh)
 
-  // draw crop box
-  if (cropBox.w > 10 && cropBox.h > 10) {
-    const bx = ix + cropBox.x * scale, by = iy + cropBox.y * scale
-    const bw = cropBox.w * scale, bh = cropBox.h * scale
-    // dim outside
-    ctx.fillStyle = 'rgba(0,0,0,0.3)'
-    ctx.fillRect(0, 0, cw, by)
-    ctx.fillRect(0, by, bx, bh)
-    ctx.fillRect(bx + bw, by, cw - bx - bw, bh)
-    ctx.fillRect(0, by + bh, cw, ch - by - bh)
-    // box border
-    ctx.strokeStyle = '#FFF'; ctx.lineWidth = 2
-    ctx.setLineDash([6, 3]); ctx.strokeRect(bx, by, bw, bh); ctx.setLineDash([])
+  // crop box border
+  ctx.strokeStyle = '#00D4AA'; ctx.lineWidth = 2
+  ctx.setLineDash([6, 3]); ctx.strokeRect(bx, by, bw, bh); ctx.setLineDash([])
+
+  // drag handles
+  if (!cropDown) {
+    const handles = getHandlePos(ix, iy, scale)
+    ctx.fillStyle = '#FFF'; ctx.strokeStyle = '#666'; ctx.lineWidth = 1
+    for (const name of HANDLE_NAMES) {
+      const h = handles[name]
+      ctx.fillRect(h.x - HANDLE_SIZE / 2, h.y - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE)
+      ctx.strokeRect(h.x - HANDLE_SIZE / 2, h.y - HANDLE_SIZE / 2, HANDLE_SIZE, HANDLE_SIZE)
+    }
   }
 }
 
 function onCropDown(e) {
   const canvas = cropCanvasRef.value
-  if (!canvas || !canvas._imgScale) return
+  const params = getCanvasParams()
+  if (!canvas || !params) return
   const rect = canvas.getBoundingClientRect()
-  const mx = e.clientX - rect.left; const my = e.clientY - rect.top
-  cropDown = true
-  cropStart = {
-    x: (mx - canvas._imgX) / canvas._imgScale,
-    y: (my - canvas._imgY) / canvas._imgScale
-  }
-  cropBox = { x: Math.max(0, cropStart.x), y: Math.max(0, cropStart.y), w: 0, h: 0 }
-  drawCrop()
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top
+  const action = hitTest(mx, my, params.ix, params.iy, params.scale)
+  if (!action) return
+  cropDown = true; cropAction = action
+  cropStartBox = { ...cropBox }
+  cropStartMouse = { x: (mx - params.ix) / params.scale, y: (my - params.iy) / params.scale }
+  e.preventDefault()
 }
 
 function onCropMove(e) {
-  if (!cropDown) return
-  const canvas = cropCanvasRef.value
-  if (!canvas || !canvas._imgScale) return
-  const rect = canvas.getBoundingClientRect()
-  const mx = (e.clientX - rect.left - canvas._imgX) / canvas._imgScale
-  const my = (e.clientY - rect.top - canvas._imgY) / canvas._imgScale
-  const bx = Math.min(cropStart.x, mx); const by = Math.min(cropStart.y, my)
-  cropBox = {
-    x: Math.max(0, bx),
-    y: Math.max(0, by),
-    w: Math.abs(mx - cropStart.x),
-    h: Math.abs(my - cropStart.y)
+  if (!cropDown) {
+    // hover cursor
+    const canvas = cropCanvasRef.value; const params = getCanvasParams()
+    if (!canvas || !params) return
+    const rect = canvas.getBoundingClientRect()
+    const mx = e.clientX - rect.left, my = e.clientY - rect.top
+    const action = hitTest(mx, my, params.ix, params.iy, params.scale)
+    const cursors = { tl:'nw-resize', top:'n-resize', tr:'ne-resize', right:'e-resize', br:'se-resize', bottom:'s-resize', bl:'sw-resize', left:'w-resize', move:'move' }
+    canvas.style.cursor = cursors[action] || 'default'
+    return
   }
-  drawCrop()
+  const canvas = cropCanvasRef.value; const params = getCanvasParams()
+  if (!canvas || !params) return
+  const rect = canvas.getBoundingClientRect()
+  const mx = (e.clientX - rect.left - params.ix) / params.scale
+  const my = (e.clientY - rect.top - params.iy) / params.scale
+  const dx = mx - cropStartMouse.x, dy = my - cropStartMouse.y
+
+  if (cropAction === 'move') {
+    cropBox.x = cropStartBox.x + dx; cropBox.y = cropStartBox.y + dy
+  } else if (cropAction === 'tl') {
+    cropBox.x = cropStartBox.x + dx; cropBox.y = cropStartBox.y + dy
+    cropBox.w = cropStartBox.w - dx; cropBox.h = cropStartBox.h - dy
+  } else if (cropAction === 'tr') {
+    cropBox.y = cropStartBox.y + dy
+    cropBox.w = cropStartBox.w + dx; cropBox.h = cropStartBox.h - dy
+  } else if (cropAction === 'br') {
+    cropBox.w = cropStartBox.w + dx; cropBox.h = cropStartBox.h + dy
+  } else if (cropAction === 'bl') {
+    cropBox.x = cropStartBox.x + dx
+    cropBox.w = cropStartBox.w - dx; cropBox.h = cropStartBox.h + dy
+  } else if (cropAction === 'top') {
+    cropBox.y = cropStartBox.y + dy; cropBox.h = cropStartBox.h - dy
+  } else if (cropAction === 'bottom') {
+    cropBox.h = cropStartBox.h + dy
+  } else if (cropAction === 'left') {
+    cropBox.x = cropStartBox.x + dx; cropBox.w = cropStartBox.w - dx
+  } else if (cropAction === 'right') {
+    cropBox.w = cropStartBox.w + dx
+  }
+  clampBox(); drawCrop()
 }
 
-function onCropUp() { cropDown = false }
-function resetCrop() { cropBox = { x: 0, y: 0, w: 0, h: 0 }; drawCrop() }
+function onCropUp() { cropDown = false; drawCrop() }
+function resetCrop() { initCrop() }
 
 function doCrop() {
   if (!cropImg || cropBox.w < 10 || cropBox.h < 10) { toast('请在图片上拖拽选区框'); return }
