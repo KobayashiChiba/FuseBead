@@ -14,6 +14,7 @@ class User(Base):
     nickname = Column(String(64), nullable=False, default="")
     avatar_url = Column(String(256), nullable=True)
     invite_code_id = Column(Integer, ForeignKey("invite_codes.id"), nullable=True)
+    is_admin = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
