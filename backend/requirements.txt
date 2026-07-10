@@ -1,2 +1,19 @@
+# Web 框架
+fastapi>=0.115
+uvicorn[standard]>=0.32
+pydantic-settings>=2.6
+
+# 数据库
 sqlalchemy>=2.0
 alembic>=1.13
+
+# 认证
+pyjwt>=2.9
+passlib[bcrypt]>=1.7
+
+# 文件上传
+python-multipart>=0.0.18
+
+# 图像处理（已有 lib 依赖）
+opencv-python>=4.10
+Pillow>=10.4
