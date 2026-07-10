@@ -16,6 +16,8 @@ class User(Base):
     invite_code_id = Column(Integer, ForeignKey("invite_codes.id"), nullable=True)
     is_admin = Column(Boolean, default=False)
     is_active = Column(Boolean, default=True)
+    reset_code = Column(String(32), nullable=True)
+    reset_code_expires = Column(DateTime, nullable=True)
     created_at = Column(DateTime, default=lambda: datetime.now(timezone.utc))
 
     invite_code = relationship("InviteCode", foreign_keys=[invite_code_id])

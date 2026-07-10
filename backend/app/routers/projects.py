@@ -115,6 +115,11 @@ def update_project(
     if body.name is not None:
         project.name = body.name
     if body.folder_id is not None:
+        folder = db.query(Folder).filter(
+            Folder.id == body.folder_id, Folder.user_id == current_user.id
+        ).first()
+        if not folder:
+            raise HTTPException(status_code=404, detail="目标图库不存在")
         project.folder_id = body.folder_id
 
     # 单格改色

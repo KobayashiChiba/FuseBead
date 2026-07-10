@@ -102,17 +102,23 @@ def login(body: LoginRequest, db: Session = Depends(get_db)):
 
 @router.post("/reset-password")
 def reset_password(body: ResetPasswordRequest, db: Session = Depends(get_db)):
-    """重置密码（验证码由管理员线下提供）"""
-    # TODO: 验证码校验逻辑 — 当前暂存为简单实现，后续可扩展
-    # 目前：verify_code 固定为 "admin" 时允许重置（仅开发用）
-    if body.verify_code != "admin":
-        raise HTTPException(status_code=400, detail="验证码错误")
+    """重置密码（需管理员生成的验证码）"""
+    from datetime import datetime, timezone
 
     user = db.query(User).filter(User.username == body.username).first()
     if not user:
         raise HTTPException(status_code=404, detail="用户不存在")
 
+    # 校验验证码
+    now = datetime.utcnow()
+    if not user.reset_code or user.reset_code != body.verify_code:
+        raise HTTPException(status_code=400, detail="验证码错误")
+    if user.reset_code_expires and user.reset_code_expires < now:
+        raise HTTPException(status_code=400, detail="验证码已过期")
+
     user.password_hash = hash_password(body.new_password)
+    user.reset_code = None       # 一次性使用，立即作废
+    user.reset_code_expires = None
     db.commit()
     return {"message": "密码已重置"}
 
