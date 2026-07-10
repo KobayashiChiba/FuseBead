@@ -1,16 +1,19 @@
-"""项目路由 — 创建 / 查看 / 编辑 / 删除 / 进度 / 渲染"""
+"""项目路由 — 创建 / 识别 / 编辑 / 删除 / 进度 / 渲染"""
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form
+from fastapi.responses import Response
 from sqlalchemy.orm import Session
+from pathlib import Path
 
 from ..core.database import get_db
 from ..models.user import User
 from ..models.folder import Folder
 from ..models.project import BeadProject, ProjectGrid, ProjectProgress
-from ..services.project_service import create_project
+from ..services.project_service import create_project, re_recognize
 from ..schemas.project import (
     ProjectResponse,
     ProjectDetailResponse,
     ProjectUpdate,
+    RecognizeRequest,
     ProgressResponse,
     ProgressUpdate,
 )
@@ -35,21 +38,26 @@ def list_projects(
 
 @router.post("", response_model=ProjectResponse, status_code=201)
 async def upload_project(
-    name: str = Form(...),
+    image: UploadFile = File(...),
+    name: str = Form("未命名拼豆图"),
     folder_id: int | None = Form(None),
     color_card_id: int = Form(...),
     ref_x: float = Form(...),
     ref_y: float = Form(...),
     cell_size: float = Form(...),
-    image: UploadFile = File(...),
+    mode: str = Form("dominant"),
+    merge_threshold: int = Form(25),
+    crop_x: float = Form(0),
+    crop_y: float = Form(0),
+    crop_w: float = Form(0),
+    crop_h: float = Form(0),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """上传图片 → 识别色号 → 创建项目"""
+    """新建项目：上传图片 + 裁剪 + 参考格 + 算法参数 → 识别 → 保存"""
     if image.content_type and not image.content_type.startswith("image/"):
         raise HTTPException(status_code=400, detail="仅支持图片文件")
 
-    # 检验文件夹归属
     if folder_id is not None:
         folder = db.query(Folder).filter(
             Folder.id == folder_id, Folder.user_id == current_user.id
@@ -60,23 +68,50 @@ async def upload_project(
     image_bytes = await image.read()
     ext = Path(image.filename).suffix if image.filename else ".png"
 
+    crop = {"x": crop_x, "y": crop_y, "w": crop_w, "h": crop_h} if crop_w > 0 and crop_h > 0 else None
+
     try:
         project = create_project(
-            db=db,
-            user_id=current_user.id,
-            name=name,
-            folder_id=folder_id,
-            color_card_id=color_card_id,
-            image_bytes=image_bytes,
-            image_ext=ext,
-            ref_x=ref_x,
-            ref_y=ref_y,
-            cell_size=cell_size,
+            db=db, user_id=current_user.id, name=name,
+            folder_id=folder_id, color_card_id=color_card_id,
+            image_bytes=image_bytes, image_ext=ext,
+            ref_x=ref_x, ref_y=ref_y, cell_size=cell_size,
+            mode=mode, merge_threshold=merge_threshold, crop=crop,
         )
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
     return ProjectResponse.model_validate(project)
+
+
+@router.post("/{project_id}/recognize", response_model=ProjectResponse)
+def recognize_project(
+    project_id: int,
+    body: RecognizeRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """重新识别：用已有原图 + 新参数重新运行 beadextract"""
+    project = db.query(BeadProject).filter(
+        BeadProject.id == project_id, BeadProject.user_id == current_user.id
+    ).first()
+    if not project:
+        raise HTTPException(status_code=404, detail="项目不存在")
+
+    crop = body.crop.model_dump() if body.crop else None
+
+    try:
+        result = re_recognize(
+            db=db, project=project,
+            ref_x=body.ref_x, ref_y=body.ref_y, cell_size=body.cell_size,
+            color_card_id=body.color_card_id,
+            mode=body.mode, merge_threshold=body.merge_threshold,
+            crop=crop, create_new=body.create_new,
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+    return ProjectResponse.model_validate(result)
 
 
 @router.get("/{project_id}", response_model=ProjectDetailResponse)
@@ -85,7 +120,7 @@ def get_project(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """项目详情（含网格数据）"""
+    """项目详情（含网格数据 + source_image 文件名）"""
     project = db.query(BeadProject).filter(
         BeadProject.id == project_id, BeadProject.user_id == current_user.id
     ).first()
@@ -104,7 +139,7 @@ def update_project(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """编辑项目：基本信息 / 替换完整网格数据（前端负责单格改色和全局替换逻辑）"""
+    """编辑项目：基本信息 / 替换完整网格数据（前端负责编辑逻辑）"""
     project = db.query(BeadProject).filter(
         BeadProject.id == project_id, BeadProject.user_id == current_user.id
     ).first()
@@ -121,7 +156,6 @@ def update_project(
             raise HTTPException(status_code=404, detail="目标图库不存在")
         project.folder_id = body.folder_id
 
-    # 前端已完成编辑，直接替换整个网格
     if body.grid_data is not None and project.grid:
         project.grid.grid_data = body.grid_data
         project.grid_rows = len(body.grid_data)
@@ -173,7 +207,7 @@ def update_progress(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """更新拼豆进度（合并更新，不覆盖未传的色号）"""
+    """更新拼豆进度（合并更新）"""
     project = db.query(BeadProject).filter(
         BeadProject.id == project_id, BeadProject.user_id == current_user.id
     ).first()
@@ -191,10 +225,6 @@ def update_progress(
     progress.color_progress = current
     db.commit()
     return ProgressResponse(color_progress=progress.color_progress)
-
-
-from fastapi.responses import Response
-from pathlib import Path  # noqa: E402
 
 
 @router.get("/{project_id}/render")

@@ -7,6 +7,15 @@ from typing import Optional
 from pydantic import BaseModel, Field
 
 
+# ── 裁剪信息 ──
+
+class CropInfo(BaseModel):
+    x: float = 0
+    y: float = 0
+    w: float = 0  # 0 表示不裁剪，用原图
+    h: float = 0
+
+
 # ── 请求体 ──
 
 class ProjectUpdate(BaseModel):
@@ -14,6 +23,20 @@ class ProjectUpdate(BaseModel):
     name: Optional[str] = Field(default=None, min_length=1, max_length=128)
     folder_id: Optional[int] = None
     grid_data: Optional[list[list[str]]] = None  # 完整二维色号表，替换整个网格
+
+
+class RecognizeRequest(BaseModel):
+    """识别请求 — 新建项目和重新识别共用"""
+    ref_x: float
+    ref_y: float
+    cell_size: float
+    color_card_id: int
+    mode: str = "dominant"       # "dominant" | "average"
+    merge_threshold: int = 25    # 全局聚类阈值
+    crop: Optional[CropInfo] = None  # 不传则用原图
+    name: Optional[str] = Field(default=None, min_length=1, max_length=128)  # 仅新建时需要
+    folder_id: Optional[int] = None  # 仅新建时需要
+    create_new: bool = False     # 重新识别时：false 覆盖 / true 新建
 
 
 # ── 响应体 ──

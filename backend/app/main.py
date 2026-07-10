@@ -10,6 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.staticfiles import StaticFiles
 
 from .core.config import settings
 from .core.database import SessionLocal
@@ -47,6 +48,9 @@ app.include_router(color_cards.router)
 app.include_router(projects.router)
 app.include_router(admin.router)
 app.include_router(public.router)
+
+# 静态文件 — 前端通过 /uploads/{filename} 访问原图
+app.mount("/uploads", StaticFiles(directory=settings.UPLOAD_DIR), name="uploads")
 
 
 @app.get("/api/health")
