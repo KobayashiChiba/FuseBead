@@ -43,6 +43,7 @@ async function handleRegister() {
   loading.value = true
   try {
     await auth.register({ ...form })
+    await auth.fetchMe()
     router.push('/')
   } catch (e) {
     error.value = e.response?.data?.detail || '注册失败，请重试'

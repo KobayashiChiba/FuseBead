@@ -5,7 +5,7 @@
 </template>
 
 <script setup>
-import { computed, ref, onMounted } from 'vue'
+import { computed, ref, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import MainLayout from '@/components/MainLayout.vue'
@@ -54,7 +54,10 @@ const layoutProps = computed(() => {
     }
   }
   if (layout === 'editor') {
-    return { title: route.name === 'ProjectCreate' ? '新建项目' : route.name === 'Recognize' ? '重新识别' : '项目详情' }
+    return {
+      title: route.name === 'ProjectCreate' ? '新建项目' : route.name === 'Recognize' ? '重新识别' : '项目详情',
+      nickname: user.nickname || '',
+    }
   }
   return {}
 })
@@ -63,16 +66,19 @@ const layoutProps = computed(() => {
 onMounted(() => {
   if (auth.isLoggedIn) fetchGalleries()
 })
+watch(() => auth.isLoggedIn, (val) => {
+  if (val) fetchGalleries()
+})
 </script>
 
 <script>
 import { h } from 'vue'
 
 const EditorLayout = {
-  props: ['title'],
+  props: ['title', 'nickname'],
   setup(props, { slots }) {
     return () => h('div', [
-      h(TopNav, { title: props.title, nickname: '' }),
+      h(TopNav, { title: props.title, nickname: props.nickname || '' }),
       h('div', { style: { paddingTop: '60px', minHeight: '100vh' } }, slots.default?.())
     ])
   }

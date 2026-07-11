@@ -39,6 +39,7 @@ async function handleLogin() {
   loading.value = true
   try {
     await auth.login(username.value, password.value)
+    await auth.fetchMe()
     router.push('/')
   } catch (e) {
     error.value = e.response?.data?.detail || '登录失败，请重试'

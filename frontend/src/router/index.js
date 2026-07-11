@@ -1,4 +1,5 @@
 import { createRouter, createWebHistory } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 
 const routes = [
   // Auth
@@ -20,19 +21,19 @@ const routes = [
     path: '/',
     name: 'Home',
     component: () => import('@/views/HomeView.vue'),
-    meta: { layout: 'main' },
+    meta: { layout: 'main', requireAuth: true },
   },
   {
     path: '/gallery/:id',
     name: 'Gallery',
     component: () => import('@/views/GalleryView.vue'),
-    meta: { layout: 'main' },
+    meta: { layout: 'main', requireAuth: true },
   },
   {
     path: '/admin',
     name: 'Admin',
     component: () => import('@/views/AdminView.vue'),
-    meta: { layout: 'main' },
+    meta: { layout: 'main', requireAuth: true, requireAdmin: true },
   },
 
   // Editor (topnav only, no sidebar)
@@ -40,19 +41,19 @@ const routes = [
     path: '/project/new',
     name: 'ProjectCreate',
     component: () => import('@/views/ProjectCreateView.vue'),
-    meta: { layout: 'editor' },
+    meta: { layout: 'editor', requireAuth: true },
   },
   {
     path: '/project/:id/recognize',
     name: 'Recognize',
     component: () => import('@/views/RecognizeView.vue'),
-    meta: { layout: 'editor' },
+    meta: { layout: 'editor', requireAuth: true },
   },
   {
     path: '/project/:id',
     name: 'ProjectDetail',
     component: () => import('@/views/ProjectDetailView.vue'),
-    meta: { layout: 'editor' },
+    meta: { layout: 'editor', requireAuth: true },
   },
 
   // Public
@@ -67,6 +68,17 @@ const routes = [
 const router = createRouter({
   history: createWebHistory(),
   routes,
+})
+
+router.beforeEach((to, from, next) => {
+  const auth = useAuthStore()
+  if (to.meta.requireAuth && !auth.isLoggedIn) {
+    return next('/login')
+  }
+  if (to.meta.requireAdmin && !auth.isAdmin) {
+    return next('/')
+  }
+  next()
 })
 
 export default router
