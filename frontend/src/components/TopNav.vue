@@ -8,7 +8,7 @@
     <div class="topnav-right">
       <div class="topnav-user">
         <img :src="avatar" class="topnav-avatar" alt="" />
-        <span class="topnav-name">{{ nickname }}</span>
+        <span class="topnav-name">{{ nickname || '用户' }}</span>
       </div>
     </div>
   </header>

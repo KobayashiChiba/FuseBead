@@ -10,7 +10,7 @@
         <div class="form-group"><input class="form-input auth-input" v-model="form.password" type="password" placeholder="密码（6位以上）" /></div>
         <div class="form-group"><input class="form-input auth-input" v-model="form.invite_code" placeholder="邀请码" /></div>
         <p class="auth-error" v-if="error">{{ error }}</p>
-        <button class="btn btn-primary auth-btn" @click="handleRegister">注 册</button>
+        <button class="btn btn-primary auth-btn" :disabled="loading" @click="handleRegister">{{ loading ? '注册中...' : '注 册' }}</button>
       </form>
       <p class="auth-footer">
         已有账号？<router-link to="/login">登录</router-link>
@@ -21,9 +21,35 @@
 
 <script setup>
 import { reactive, ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+
+const router = useRouter()
+const auth = useAuthStore()
 const form = reactive({ username: '', nickname: '', password: '', invite_code: '' })
 const error = ref('')
-function handleRegister() { error.value = '' }
+const loading = ref(false)
+
+async function handleRegister() {
+  error.value = ''
+  if (!form.username || !form.nickname || !form.password || !form.invite_code) {
+    error.value = '请填写所有字段'
+    return
+  }
+  if (form.password.length < 6) {
+    error.value = '密码至少6位'
+    return
+  }
+  loading.value = true
+  try {
+    await auth.register({ ...form })
+    router.push('/')
+  } catch (e) {
+    error.value = e.response?.data?.detail || '注册失败，请重试'
+  } finally {
+    loading.value = false
+  }
+}
 </script>
 
 <style scoped>

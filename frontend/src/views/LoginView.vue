@@ -12,7 +12,7 @@
           <input class="form-input auth-input" v-model="password" type="password" placeholder="密码" />
         </div>
         <p class="auth-error" v-if="error">{{ error }}</p>
-        <button class="btn btn-primary auth-btn" @click="handleLogin">登 录</button>
+        <button class="btn btn-primary auth-btn" :disabled="loading" @click="handleLogin">{{ loading ? '登录中...' : '登 录' }}</button>
       </form>
       <p class="auth-footer">
         还没有账号？<router-link to="/register">注册</router-link>
@@ -23,13 +23,28 @@
 
 <script setup>
 import { ref } from 'vue'
+import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
+
+const router = useRouter()
+const auth = useAuthStore()
 const username = ref('')
 const password = ref('')
 const error = ref('')
-function handleLogin() {
+const loading = ref(false)
+
+async function handleLogin() {
   error.value = ''
   if (!username.value || !password.value) { error.value = '请填写用户名和密码'; return }
-  // mock — 预览模式不实际登录
+  loading.value = true
+  try {
+    await auth.login(username.value, password.value)
+    router.push('/')
+  } catch (e) {
+    error.value = e.response?.data?.detail || '登录失败，请重试'
+  } finally {
+    loading.value = false
+  }
 }
 </script>
 

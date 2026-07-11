@@ -5,53 +5,82 @@
 </template>
 
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { useAuthStore } from '@/stores/auth'
 import MainLayout from '@/components/MainLayout.vue'
 import TopNav from '@/components/TopNav.vue'
+import api from '@/utils/api'
 
 const route = useRoute()
+const auth = useAuthStore()
 
-// Mock data shared across layouts
-const galleries = [
-  { id: 1, name: '默认图库', project_count: 3 },
-  { id: 2, name: '分享区', project_count: 2 },
-  { id: 3, name: '宝可梦', project_count: 5 },
-  { id: 4, name: '风景', project_count: 7 },
-  { id: 5, name: '建筑', project_count: 0 },
-]
+// Fetch galleries for sidebar
+const galleries = ref([])
+
+async function fetchGalleries() {
+  if (!auth.isLoggedIn) return
+  try {
+    const res = await api.get('/folders')
+    galleries.value = res.data
+  } catch { /* sidebar silently fails */ }
+}
 
 const layoutComponent = computed(() => {
   const layout = route.meta.layout || 'main'
-  if (layout === 'auth') return 'div'  // auth pages are standalone
+  if (layout === 'auth') return 'div'
   if (layout === 'editor') return EditorLayout
+  if (layout === 'public') return PublicLayout
   return MainLayout
 })
 
 const layoutProps = computed(() => {
   const layout = route.meta.layout || 'main'
+  const user = auth.user || {}
   if (layout === 'main') {
+    const title = route.name === 'Home' ? '我的图库'
+      : route.name === 'Gallery' ? '图库项目'
+      : route.name === 'Admin' ? '管理后台'
+      : ''
     return {
-      title: '我的图库',
-      galleries,
-      activeId: parseInt(route.params.id) || 1,
-      user: { nickname: '小林千叶', username: 'xiaolin', avatar: '' },
+      title,
+      galleries: galleries.value,
+      activeId: parseInt(route.params.id) || null,
+      user: {
+        nickname: user.nickname || '用户',
+        username: user.username || '',
+        avatar: user.avatar_url || '',
+      },
     }
   }
-  if (layout === 'editor') return { title: route.name === 'ProjectCreate' ? '新建项目' : '项目详情' }
+  if (layout === 'editor') {
+    return { title: route.name === 'ProjectCreate' ? '新建项目' : route.name === 'Recognize' ? '重新识别' : '项目详情' }
+  }
   return {}
+})
+
+// Re-fetch galleries on login change
+onMounted(() => {
+  if (auth.isLoggedIn) fetchGalleries()
 })
 </script>
 
 <script>
 import { h } from 'vue'
+
 const EditorLayout = {
   props: ['title'],
   setup(props, { slots }) {
     return () => h('div', [
-      h(TopNav, { title: props.title, nickname: '小林千叶' }),
+      h(TopNav, { title: props.title, nickname: '' }),
       h('div', { style: { paddingTop: '60px', minHeight: '100vh' } }, slots.default?.())
     ])
+  }
+}
+
+const PublicLayout = {
+  setup(_, { slots }) {
+    return () => h('div', { style: { minHeight: '100vh' } }, slots.default?.())
   }
 }
 </script>

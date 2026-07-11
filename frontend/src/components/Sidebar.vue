@@ -13,24 +13,31 @@
           v-for="g in galleries"
           :key="g.id"
           :class="['sidebar-item', { active: activeId === g.id }]"
-          @click="$emit('select', g.id)"
+          @click="goGallery(g.id)"
         >
           <span class="sidebar-item-name">{{ g.name }}</span>
           <span class="sidebar-item-count">{{ g.project_count }}</span>
         </li>
       </ul>
-      <button class="sidebar-add">+ 新建图库</button>
+      <button class="sidebar-add" @click="$router.push('/')">+ 新建图库</button>
     </div>
   </aside>
 </template>
 
 <script setup>
+import { useRouter } from 'vue-router'
+
+const router = useRouter()
+
 defineProps({
   user: { type: Object, default: () => ({ nickname: '', username: '', avatar: '' }) },
   galleries: { type: Array, default: () => [] },
   activeId: { type: Number, default: null },
 })
-defineEmits(['select'])
+
+function goGallery(id) {
+  router.push(`/gallery/${id}`)
+}
 </script>
 
 <style scoped>

@@ -1,12 +1,11 @@
 <template>
   <div class="main-layout">
-    <TopNav :title="title" nickname="小林千叶" />
+    <TopNav :title="title" :nickname="user.nickname" :avatar="user.avatar" />
     <div class="main-body">
       <Sidebar
         :user="user"
         :galleries="galleries"
         :active-id="activeId"
-        @select="$emit('select-gallery', $event)"
       />
       <main class="main-content">
         <slot />
@@ -21,11 +20,10 @@ import Sidebar from './Sidebar.vue'
 
 defineProps({
   title: { type: String, default: '我的图库' },
-  user: { type: Object, default: () => ({ nickname: '小林千叶', username: 'xiaolin', avatar: '' }) },
+  user: { type: Object, default: () => ({ nickname: '用户', username: '', avatar: '' }) },
   galleries: { type: Array, default: () => [] },
   activeId: { type: Number, default: null },
 })
-defineEmits(['select-gallery'])
 </script>
 
 <style scoped>

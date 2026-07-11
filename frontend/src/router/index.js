@@ -43,6 +43,12 @@ const routes = [
     meta: { layout: 'editor' },
   },
   {
+    path: '/project/:id/recognize',
+    name: 'Recognize',
+    component: () => import('@/views/RecognizeView.vue'),
+    meta: { layout: 'editor' },
+  },
+  {
     path: '/project/:id',
     name: 'ProjectDetail',
     component: () => import('@/views/ProjectDetailView.vue'),
