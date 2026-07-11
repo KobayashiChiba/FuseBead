@@ -63,11 +63,17 @@ const layoutProps = computed(() => {
 })
 
 // Re-fetch galleries on login change
-onMounted(() => {
-  if (auth.isLoggedIn) fetchGalleries()
+onMounted(async () => {
+  if (auth.isLoggedIn) {
+    await auth.fetchMe()
+    fetchGalleries()
+  }
 })
-watch(() => auth.isLoggedIn, (val) => {
-  if (val) fetchGalleries()
+watch(() => auth.isLoggedIn, async (val) => {
+  if (val) {
+    await auth.fetchMe()
+    fetchGalleries()
+  }
 })
 </script>
 

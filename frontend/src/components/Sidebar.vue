@@ -1,7 +1,7 @@
 <template>
   <aside class="sidebar">
     <div class="sidebar-user">
-      <img :src="user.avatar" class="sidebar-avatar" alt="" />
+      <img :src="user.avatar || '/default-avatar.png'" class="sidebar-avatar" alt="" />
       <div class="sidebar-nickname">{{ user.nickname }}</div>
       <div class="sidebar-username">@{{ user.username }}</div>
     </div>
@@ -50,7 +50,7 @@ function goGallery(id) {
 .sidebar-user { text-align: center; margin-bottom: 20px; }
 .sidebar-avatar {
   width: 72px; height: 72px; border-radius: 50%; background: var(--primary-light);
-  margin-bottom: 12px;
+  margin-bottom: 12px; object-fit: cover;
 }
 .sidebar-nickname { font-size: 16px; font-weight: 600; }
 .sidebar-username { font-size: 13px; color: var(--text-secondary); margin-top: 2px; }

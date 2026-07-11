@@ -7,7 +7,7 @@
     </div>
     <div class="topnav-right">
       <div class="topnav-user">
-        <img :src="avatar" class="topnav-avatar" alt="" />
+        <img :src="avatar || '/default-avatar.png'" class="topnav-avatar" alt="" />
         <span class="topnav-name">{{ nickname || '用户' }}</span>
       </div>
     </div>
@@ -35,6 +35,6 @@ defineProps({
 .topnav-title { font-size: 14px; color: var(--text-secondary); }
 .topnav-right { display: flex; align-items: center; gap: 16px; }
 .topnav-user { display: flex; align-items: center; gap: 8px; cursor: pointer; }
-.topnav-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-light); }
+.topnav-avatar { width: 32px; height: 32px; border-radius: 50%; background: var(--primary-light); object-fit: cover; }
 .topnav-name { font-size: 14px; color: var(--text); }
 </style>

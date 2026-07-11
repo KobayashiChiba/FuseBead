@@ -3,7 +3,7 @@
     <!-- Action Bar -->
     <div class="action-bar">
       <button class="btn btn-primary" @click="showNewFolder = true">+ 新建图库</button>
-      <button class="btn btn-outline" v-if="false">{{ manageMode ? '完成' : '☐ 管理' }}</button>
+      <button class="btn btn-outline" @click="manageMode = !manageMode">{{ manageMode ? '完成' : '☐ 管理' }}</button>
     </div>
 
     <!-- Gallery Cards -->

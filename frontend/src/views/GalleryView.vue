@@ -2,7 +2,7 @@
   <div class="gallery-view">
     <div class="action-bar">
       <button class="btn btn-primary" @click="$router.push('/project/new')">+ 创建项目</button>
-      <button class="btn btn-outline" v-if="false">{{ manageMode ? '完成' : '☐ 管理' }}</button>
+      <button class="btn btn-outline" @click="manageMode = !manageMode">{{ manageMode ? '完成' : '☐ 管理' }}</button>
     </div>
 
     <div v-if="loading" class="loading">加载中...</div>
