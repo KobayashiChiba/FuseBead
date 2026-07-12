@@ -1,0 +1,27 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fusebead-v2-backend
+    restart: unless-stopped
+    volumes:
+      - fusebead_v2_data:/data
+    environment:
+      - FUSEBEAD_DATABASE_URL=sqlite:////data/fusebead.db
+      - FUSEBEAD_UPLOAD_DIR=/data/uploads
+      - TZ=Asia/Shanghai
+
+  nginx:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: fusebead-v2-nginx
+    restart: unless-stopped
+    ports:
+      - "8890:80"
+    depends_on:
+      - backend
+
+volumes:
+  fusebead_v2_data:

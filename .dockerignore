@@ -1,0 +1,14 @@
+__pycache__
+*.pyc
+*.pyo
+node_modules/
+dist/
+.git/
+.vscode/
+.idea/
+*.log
+_archive/
+_v1-backup/
+素材/
+_demo_*.html
+_preview_*.html

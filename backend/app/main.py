@@ -13,14 +13,16 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
 from .core.config import settings
-from .core.database import SessionLocal
+from .core.database import SessionLocal, engine
+from .models import Base
 from seed_data.seed_color_cards import seed
 from .routers import auth, users, folders, color_cards, projects, admin, public
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    """启动时导入预置色卡"""
+    """启动时建表 + 导入预置色卡"""
+    Base.metadata.create_all(bind=engine)
     db = SessionLocal()
     try:
         seed(db)
