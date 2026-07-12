@@ -112,11 +112,11 @@ export function useCanvasRenderer(canvasRef, project, gridData, colorMap, highli
           ctx.globalAlpha = 1
         } else if (code) {
           // 未知色号：黑紫棋盘格
-          const sq = Math.max(2, Math.ceil(s / 4))
+          const sq = Math.max(1, Math.round(s / 4))
           for (let sr = 0; sr < size; sr += sq) {
             for (let sc = 0; sc < size; sc += sq) {
               const isLight = ((sr / sq | 0) + (sc / sq | 0)) % 2 === 0
-              ctx.fillStyle = isLight ? '#3D1A5C' : '#1A0A2E'
+              ctx.fillStyle = isLight ? '#FF00FF' : '#000000'
               ctx.globalAlpha = 0.9
               ctx.fillRect(x + sc, y + sr, Math.min(sq, size - sc), Math.min(sq, size - sr))
             }
@@ -124,7 +124,7 @@ export function useCanvasRenderer(canvasRef, project, gridData, colorMap, highli
           ctx.globalAlpha = 1
         } else {
           // 空格：灰白棋盘格
-          const sq = Math.max(2, Math.ceil(s / 4))
+          const sq = Math.max(1, Math.round(s / 4))
           for (let sr = 0; sr < size; sr += sq) {
             for (let sc = 0; sc < size; sc += sq) {
               const isLight = ((sr / sq | 0) + (sc / sq | 0)) % 2 === 0
@@ -158,7 +158,7 @@ export function useCanvasRenderer(canvasRef, project, gridData, colorMap, highli
         for (let c = 0; c < cols; c++) {
           const code = gridData.value[r]?.[c]
           if (!code) continue
-          const known = !!colorMap.value[code]
+          if (!colorMap.value[code]) continue  // 未知色号不显示文字
           if (highlightCode.value && code !== highlightCode.value) continue
           if (showCounts && highlightCode.value && code === highlightCode.value) continue
           const hex = colorMap.value[code] || '#9B30FF'

@@ -7,13 +7,13 @@
         <div class="rd-compare">
           <div class="rd-swatch-group">
             <span class="rd-label">当前</span>
-            <span class="rd-swatch" :style="{ background: oldHex }"></span>
+            <span class="rd-swatch" :class="{ 'rd-zz-swatch': oldCode === 'ZZ' }" :style="oldCode === 'ZZ' ? {} : { background: oldHex }"></span>
             <span>{{ oldCode }}</span>
           </div>
           <span class="rd-arrow">→</span>
           <div class="rd-swatch-group">
             <span class="rd-label">替换为</span>
-            <span class="rd-swatch" :class="{ 'rd-empty-swatch': newCode === '' }" :style="newCode === '' ? {} : { background: newHex }"></span>
+            <span class="rd-swatch" :class="{ 'rd-empty-swatch': newCode === '', 'rd-zz-swatch': newCode === 'ZZ' }" :style="(newCode === '' || newCode === 'ZZ') ? {} : { background: newHex }"></span>
             <span>{{ newCode === '' ? '空格' : newCode || '—' }}</span>
           </div>
           <div class="rd-all-btn-wrap">
@@ -118,6 +118,10 @@ function confirm() { emit('confirm', { newCode: newCode.value }) }
 .rd-nearest-item .rd-swatch { width: 24px; height: 24px; border-radius: 4px; }
 .rd-empty-swatch {
   background-image: repeating-conic-gradient(#ddd 0% 25%, #f8f8f8 0% 50%) !important;
+  background-size: 8px 8px !important;
+}
+.rd-zz-swatch {
+  background-image: repeating-conic-gradient(#FF00FF 0% 25%, #000000 0% 50%) !important;
   background-size: 8px 8px !important;
 }
 .rd-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 8px; }

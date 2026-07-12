@@ -247,6 +247,25 @@ def update_project(
         project.grid_rows = len(body.grid_data)
         project.grid_cols = len(body.grid_data[0]) if body.grid_data else 0
 
+        # 重新生成缩略图 + 豆数
+        from lib.beadrender import render_thumbnail
+        try:
+            card = project.color_card
+            color_map = {c["code"]: tuple(int(c["hex"][i:i+2], 16) for i in (0, 2, 4))
+                         for c in card.colors} if card else {}
+            thumb = render_thumbnail(body.grid_data, color_map)
+            if thumb:
+                project.grid.thumbnail = thumb
+            # 豆数 = 非空且色卡中存在的格子数
+            bead_count = 0
+            for row in body.grid_data:
+                for code in row:
+                    if code and code in color_map:
+                        bead_count += 1
+            project.grid.color_count = bead_count
+        except Exception:
+            pass
+
     db.commit()
     db.refresh(project)
     return ProjectResponse.model_validate(project)

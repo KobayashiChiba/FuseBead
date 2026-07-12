@@ -125,7 +125,7 @@ def create_project(
         thumb = render_thumbnail(color_codes, color_map)
         if thumb:
             grid.thumbnail = thumb
-            grid.color_count = len(set(c for row in color_codes for c in row if c))
+            grid.color_count = sum(1 for row in color_codes for c in row if c in color_map)
             db.commit()
     except Exception:
         pass  # 缩略图生成失败不影响主流程
@@ -198,7 +198,7 @@ def re_recognize(
             thumb = render_thumbnail(color_codes, color_map)
             if thumb:
                 project.grid.thumbnail = thumb
-                project.grid.color_count = len(set(c for row in color_codes for c in row if c))
+                project.grid.color_count = sum(1 for row in color_codes for c in row if c in color_map)
         except Exception:
             pass
 

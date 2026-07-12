@@ -51,7 +51,7 @@
           </div>
           <div class="card-body">
             <div class="card-name">{{ p.name }}</div>
-            <div class="card-meta">{{ p.grid_rows }}×{{ p.grid_cols }} · {{ colorCount(p) }}色</div>
+            <div class="card-meta">{{ p.grid_rows }}×{{ p.grid_cols }} · {{ colorCount(p) }}豆</div>
             <div class="card-progress"><div class="card-progress-bar" :style="{ width: progress(p) + '%' }"></div></div>
           </div>
         </div>
