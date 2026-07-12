@@ -60,16 +60,6 @@
       @confirm="onReplaceConfirm"
     />
 
-    <!-- SimplifyDialog -->
-    <SimplifyDialog
-      v-if="showSimplify"
-      @close="showSimplify = false"
-      @confirm="onSimplifyConfirm"
-    />
-
-    <!-- ReplaceDialog -->
-
-
     <div :class="['view-toast', { show: toastMsg }]" v-if="toastMsg">{{ toastMsg }}</div>
   </div>
 </template>
@@ -80,7 +70,6 @@ import { useRoute, useRouter } from 'vue-router'
 import api from '@/utils/api'
 import EditorToolbar from '@/components/EditorToolbar.vue'
 import ReplaceDialog from '@/components/ReplaceDialog.vue'
-import SimplifyDialog from '@/components/SimplifyDialog.vue'
 import { useCanvasRenderer } from '@/composables/useCanvasRenderer'
 import { useEditorTools } from '@/composables/useEditorTools'
 
@@ -147,17 +136,12 @@ const canvas = useCanvasRenderer(canvasRef, project, gridData, colorMap, highlig
 // ── Editor ──
 const editorTools = useEditorTools(gridData, colorMap, colorStats, canvas.render, buildColorStats)
 
-function buildNearestMapWrapped() {
-  editorTools.buildNearestMap()
-}
-
 // ── Edit state ──
 const activeTool = ref('drag')
 const brushColor = ref('H1')
 const colorCardColors = ref([])
 const colorCardName = ref('')
 const replaceDialog = reactive({ oldCode: null, oldHex: '', scope: 'cell', row: 0, col: 0 })
-const showSimplify = ref(false)
 // const eyedropperActive = ref(false) — 已合并到 activeTool
 
 let lastBrushedCell = null
@@ -259,7 +243,7 @@ async function onToolChange(tool) {
   highlightCode.value = null
   selectedCell.value = null
   hoverCell.value = null
-  if (tool === 'simplify') { showSimplify.value = true; activeTool.value = 'drag'; return }
+  if (tool === 'simplify') return  // 已移除
   activeTool.value = tool
   canvasRef.value.style.cursor = tool === 'drag' ? 'grab' : 'crosshair'
   canvas.render()
@@ -294,15 +278,6 @@ function onReplaceConfirm({ newCode }) {
   highlightCode.value = null
   selectedCell.value = null
   canvas.render()
-}
-
-function onSimplifyConfirm(threshold) {
-  const count = editorTools.simplifyColors(threshold)
-  showSimplify.value = false
-  if (count > 0) {
-    toast(`已合并 ${count} 组相近颜色`)
-    activeTool.value = 'drag'; canvasRef.value.style.cursor = 'grab'
-  } else { toast('没有需要合并的颜色') }
 }
 
 // ── Keyboard ──
@@ -351,7 +326,6 @@ async function loadProject() {
 
     buildColorStats()
     editorTools.initHistory()
-    editorTools.buildNearestMap()
     await nextTick()
     requestAnimationFrame(() => requestAnimationFrame(() => canvas.initWorkspace(workspaceRef)))
   } catch (e) {

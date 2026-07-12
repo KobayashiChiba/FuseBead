@@ -1,5 +1,4 @@
 """用户路由 — 个人信息 & 设置"""
-import os
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
