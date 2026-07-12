@@ -1,8 +1,8 @@
 <template>
   <div>
     <div class="ccp-trigger" ref="triggerRef" @click="toggle">
-      <span class="ccp-swatch" :style="{ background: selectedHex }"></span>
-      <span class="ccp-label">{{ modelValue || '选择颜色' }}</span>
+      <span class="ccp-swatch" :class="{ 'ccp-empty-swatch': modelValue === '' }" :style="modelValue === '' ? {} : { background: selectedHex }"></span>
+      <span class="ccp-label">{{ modelValue === '' ? '空格' : modelValue || '选择颜色' }}</span>
       <span class="ccp-arrow">▾</span>
     </div>
     <Teleport to="body">
@@ -79,6 +79,10 @@ const selectedHex = computed(() => {
   border: 1px solid rgba(0,0,0,0.1); flex-shrink: 0;
 }
 .ccp-label { flex: 1; font-weight: 500; }
+.ccp-empty-swatch {
+  background-image: repeating-conic-gradient(#ddd 0% 25%, #f8f8f8 0% 50%);
+  background-size: 8px 8px;
+}
 .ccp-arrow { color: var(--text-secondary); font-size: 11px; }
 </style>
 

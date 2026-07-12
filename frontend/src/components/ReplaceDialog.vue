@@ -55,7 +55,7 @@
 
       <div class="rd-actions">
         <button class="btn btn-outline btn-sm" @click="$emit('close')">取消</button>
-        <button class="btn btn-primary btn-sm" :disabled="!newCode" @click="confirm">确认替换</button>
+        <button class="btn btn-primary btn-sm" :disabled="newCode === oldCode" @click="confirm">确认替换</button>
       </div>
     </div>
   </div>
