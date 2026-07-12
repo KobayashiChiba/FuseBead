@@ -16,7 +16,7 @@
           :key="tool.id"
           :class="['et-tool-btn', { active: activeTool === tool.id }]"
           :title="tool.title"
-          @click="onToolClick(tool.id)"
+          @click="$emit('update:activeTool', tool.id)"
         >
           {{ tool.label }}
           <span v-if="tool.key" class="et-key">{{ tool.key }}</span>
@@ -121,8 +121,6 @@ const tools = [
   { id: 'eyedropper', label: '取色', key: 'R', title: '取色器 (R)' },
 ]
 // [僵尸代码] simplify 工具已移除，功能代码在 useEditorTools.js 中保留
-
-function onToolClick(id) { emit('update:activeTool', id) }
 
 function sortArrow(field) {
   if (props.sortField !== field) return ''
