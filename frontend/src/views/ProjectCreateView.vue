@@ -102,7 +102,8 @@
               </template>
             </div>
           </div>
-          <canvas ref="posCanvasRef" @mousedown="posMouseDown" @mousemove="posMouseMove" @mouseup="posMouseUp" @mouseleave="posMouseUp"></canvas>
+          <canvas ref="posCanvasRef" @mousedown="posMouseDown" @mousemove="posMouseMove" @mouseup="posMouseUp" @mouseleave="posMouseUp" @wheel.prevent="posWheel"></canvas>
+          <div class="pos-reset-btn" v-if="viewScale !== 1 || viewOffX !== 0 || viewOffY !== 0" @click="resetView" title="恢复居中">⟲</div>
           <div class="pos-info-panel">
             <strong>{{ gridMode ? '网格模式' : '九宫格' }}</strong><br />
             参考点: ({{ Math.round(state.refX) }}, {{ Math.round(state.refY) }})<br />
@@ -111,15 +112,12 @@
         </div>
         <div class="pos-toolbar">
           <div class="pos-zone size-control">
-            <div class="size-input-area"><input type="number" class="size-input" v-model.number="state.cellSize" min="5" max="100" step="0.5" /></div>
-            <div class="size-btns">
-              <button class="size-btn" @click="adjCellSize(1)">+</button>
-              <button class="size-btn" @click="adjCellSize(-1)">−</button>
+            <div class="size-input-area"><input type="number" class="size-input" v-model.number="state.cellSize" min="5" max="100" step="0.01" /></div>
+            <div class="size-btns-row">
+              <button class="size-btn large" @click="adjCellSize(-1)">−</button>
+              <button class="size-btn large" @click="adjCellSize(1)">+</button>
             </div>
-            <div class="size-btns">
-              <button class="size-btn" @click="adjCellSize(0.1)">+</button>
-              <button class="size-btn" @click="adjCellSize(-0.1)">−</button>
-            </div>
+            <button class="step-mode-btn" @click="cycleCellStep" :title="'切换精度：' + stepLabel">{{ stepLabel }}</button>
           </div>
           <div class="pos-zone mode-toggle">
             <span :class="{ active: !gridMode }">九宫格</span>
@@ -278,6 +276,9 @@ const state = reactive({
 const currentStep = ref(0)
 const algo = ref('dominant')
 const gridMode = ref(false)
+const viewScale = ref(1)
+const viewOffX = ref(0)
+const viewOffY = ref(0)
 const trimTop = ref(0)
 const trimBottom = ref(0)
 const trimLeft = ref(0)
@@ -426,7 +427,7 @@ function closeCropZoom() {
 
 // ═══════ Step 3: Position ═══════
 const workspaceRef = ref(null), posCanvasRef = ref(null), magnifierCanvasRef = ref(null)
-let posDragging = false, posResizeHandle = -1, posStart = {}, posImg = null, posScale = 1, posOffX = 0, posOffY = 0
+let posDragging = false, posResizeHandle = -1, posDragTarget = '', posStart = {}, posImg = null, posScale = 1, posOffX = 0, posOffY = 0
 let posHandleImg = []
 
 function initPosition() {
@@ -438,6 +439,7 @@ function initPosition() {
   state.gridY = Math.max(0, Math.round((posImg.height - state.gridH) / 2))
   state.refX = state.gridX + cs; state.refY = state.gridY + cs
   gridMode.value = false
+  viewScale.value = 1; viewOffX.value = 0; viewOffY.value = 0
   drawPos()
 }
 
@@ -448,9 +450,10 @@ function drawPos() {
   canvas.width = rect.width; canvas.height = rect.height
   const ctx = canvas.getContext('2d'); const cw = canvas.width; const ch = canvas.height
   ctx.fillStyle = '#3A3A3A'; ctx.fillRect(0, 0, cw, ch)
-  posScale = Math.min((cw - 40) / posImg.width, (ch - 40) / posImg.height)
+  const baseScale = Math.min((cw - 40) / posImg.width, (ch - 40) / posImg.height)
+  posScale = baseScale * viewScale.value
   const iw = posImg.width * posScale; const ih = posImg.height * posScale
-  posOffX = (cw - iw) / 2; posOffY = (ch - ih) / 2
+  posOffX = (cw - iw) / 2 + viewOffX.value; posOffY = (ch - ih) / 2 + viewOffY.value
   ctx.fillStyle = '#FFF'; ctx.fillRect(posOffX - 2, posOffY - 2, iw + 4, ih + 4)
   ctx.drawImage(posImg, 0, 0, posImg.width, posImg.height, posOffX, posOffY, iw, ih)
   if (!gridMode.value) {
@@ -572,25 +575,34 @@ function posMouseDown(e) {
   const rect = posCanvasRef.value.getBoundingClientRect()
   const mx = (e.clientX - rect.left - posOffX) / posScale
   const my = (e.clientY - rect.top - posOffY) / posScale
-  posResizeHandle = -1
-  if (posHandleImg.length) {
+  posResizeHandle = -1; posDragTarget = ''
+  // 九宫格手柄命中检测
+  if (!gridMode.value && posHandleImg.length) {
     const hitR = 8 / posScale
     for (let i = 0; i < posHandleImg.length; i++) {
       const h = posHandleImg[i]
-      if (Math.abs(mx - h.x) < hitR && Math.abs(my - h.y) < hitR) {
-        posResizeHandle = i
-        break
-      }
+      if (Math.abs(mx - h.x) < hitR && Math.abs(my - h.y) < hitR) { posResizeHandle = i; break }
     }
   }
   posDragging = true
-  posStart = { x: mx, y: my, gx: state.gridX, gy: state.gridY, cellSize: state.cellSize }
+  if (posResizeHandle >= 0) {
+    posStart = { x: mx, y: my, gx: state.gridX, gy: state.gridY, cellSize: state.cellSize }
+  } else if (!gridMode.value && mx >= state.gridX && mx <= state.gridX + state.gridW && my >= state.gridY && my <= state.gridY + state.gridH) {
+    // 九宫格模式 + 点在九宫格内 → 移动九宫格
+    posDragTarget = 'grid'
+    posStart = { x: mx, y: my, gx: state.gridX, gy: state.gridY, cellSize: state.cellSize }
+  } else {
+    // 网格模式 / 九宫格外 → 移动画面
+    posDragTarget = 'view'
+    posStart = { x: e.clientX, y: e.clientY, vx: viewOffX.value, vy: viewOffY.value }
+  }
 }
 function posMouseMove(e) {
-  if (!posDragging) return; const rect = posCanvasRef.value.getBoundingClientRect()
-  const mx = (e.clientX - rect.left - posOffX) / posScale
-  const my = (e.clientY - rect.top - posOffY) / posScale
+  if (!posDragging) return
   if (posResizeHandle >= 0) {
+    const rect = posCanvasRef.value.getBoundingClientRect()
+    const mx = (e.clientX - rect.left - posOffX) / posScale
+    const my = (e.clientY - rect.top - posOffY) / posScale
     const refX = posStart.gx + posStart.cellSize
     const refY = posStart.gy + posStart.cellSize
     let cs = posStart.cellSize
@@ -608,15 +620,23 @@ function posMouseMove(e) {
     state.cellSize = cs
     state.gridW = cs * 3; state.gridH = cs * 3
     drawPos()
-  } else {
+  } else if (posDragTarget === 'grid') {
+    const rect = posCanvasRef.value.getBoundingClientRect()
+    const mx = (e.clientX - rect.left - posOffX) / posScale
+    const my = (e.clientY - rect.top - posOffY) / posScale
     const maxX = posImg.width - state.cellSize * 3
     const maxY = posImg.height - state.cellSize * 3
     state.gridX = Math.max(0, Math.min(maxX, posStart.gx + mx - posStart.x))
     state.gridY = Math.max(0, Math.min(maxY, posStart.gy + my - posStart.y))
-    state.refX = state.gridX + state.cellSize; state.refY = state.gridY + state.cellSize; drawPos()
+    state.refX = state.gridX + state.cellSize; state.refY = state.gridY + state.cellSize
+    drawPos()
+  } else if (posDragTarget === 'view') {
+    viewOffX.value = posStart.vx + (e.clientX - posStart.x)
+    viewOffY.value = posStart.vy + (e.clientY - posStart.y)
+    drawPos()
   }
 }
-function posMouseUp() { posDragging = false; posResizeHandle = -1; clampRefCell(); drawPos() }
+function posMouseUp() { posDragging = false; posResizeHandle = -1; posDragTarget = ''; clampRefCell(); drawPos() }
 function clampRefCell() {
   const cs = state.cellSize
   const maxX = posImg.width - cs * 3
@@ -627,9 +647,27 @@ function clampRefCell() {
   state.refY = state.gridY + cs
 }
 let prevCellSize = state.cellSize
-function adjCellSize(delta) {
-  const v = Math.round((state.cellSize + delta) * 10) / 10
+const cellStep = ref(1)
+const stepLabels = ['普通', '精细', '超精细', '粗略']
+const stepValues = [1, 0.1, 0.01, 10]
+const stepIndex = ref(0)
+const stepLabel = computed(() => stepLabels[stepIndex.value] + ' ' + stepValues[stepIndex.value] + 'px')
+function cycleCellStep() { stepIndex.value = (stepIndex.value + 1) % 4; cellStep.value = stepValues[stepIndex.value] }
+function adjCellSize(dir) {
+  const v = Math.round((state.cellSize + dir * cellStep.value) * 100) / 100
   state.cellSize = Math.max(5, Math.min(100, v))
+}
+
+// ═══════ View 缩放/拖拽 ═══════
+function posWheel(e) {
+  const factor = e.deltaY > 0 ? 0.9 : 1.1
+  viewScale.value = Math.max(0.5, Math.min(5, viewScale.value * factor))
+  drawPos()
+}
+
+function resetView() {
+  viewScale.value = 1; viewOffX.value = 0; viewOffY.value = 0
+  drawPos()
 }
 watch([() => state.cellSize, () => state.gridX, () => state.gridY, gridMode, trimTop, trimBottom, trimLeft, trimRight], (newVals) => {
   if (currentStep.value === 2) {
@@ -905,16 +943,21 @@ onMounted(async () => {
 .pos-workspace-title { position:absolute; top:12px; left:16px; z-index:1; background:#fff; padding:12px 16px; border-radius:var(--radius); border:2px solid var(--border); display:flex; justify-content:center; align-items:center; }
 .pos-workspace-title .step-indicators { padding: 0; max-width: none; margin: 0; }
 .pos-info-panel { position:absolute; bottom:16px; left:16px; background:rgba(30,41,59,0.88); color:#fff; padding:10px 14px; border-radius:var(--radius-sm); font-size:12px; line-height:1.6; }
+.pos-reset-btn { position:absolute; bottom:16px; right:16px; width:36px; height:36px; background:rgba(30,41,59,0.88); color:#fff; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:20px; cursor:pointer; z-index:2; transition:var(--transition); }
+.pos-reset-btn:hover { background:rgba(30,41,59,1); }
 .pos-toolbar { width:260px; background:#fff; border-left:1px solid var(--border); display:flex; flex-direction:column; padding:16px; gap:0; overflow-y:auto; }
 .pos-zone { border-bottom: 1px solid var(--border); padding: 10px 0; }
 .pos-zone:last-child { border-bottom: none; }
 .pos-actions { margin-top:auto; display:flex; justify-content:flex-end; }
-.size-control { display:flex; gap:8px; align-items:center; }
-.size-input-area { flex:1; }
-.size-input { width:100%; padding:8px; border:1px solid var(--border); border-radius:var(--radius-sm); text-align:center; font-size:18px; font-weight:600; }
-.size-btns { display:flex; flex-direction:column; gap:2px; }
-.size-btn { min-width:28px; height:22px; border:1px solid var(--border); border-radius:4px; background:#fff; cursor:pointer; font-size:13px; line-height:1; display:flex; align-items:center; justify-content:center; padding:0 2px; }
+.size-control { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
+.size-input-area { flex:1; min-width:60px; }
+.size-input { width:100%; padding:7px; border:1px solid var(--border); border-radius:var(--radius-sm); text-align:center; font-size:15px; font-weight:600; }
+.size-btns-row { display:flex; gap:2px; }
+.size-btn { min-width:24px; height:22px; border:1px solid var(--border); border-radius:4px; background:#fff; cursor:pointer; font-size:13px; line-height:1; display:flex; align-items:center; justify-content:center; padding:0 2px; }
+.size-btn.large { height:28px; font-size:16px; font-weight:600; }
 .size-btn:hover { background:var(--primary-light); }
+.step-mode-btn { padding:4px 6px; border:1px solid var(--primary); border-radius:4px; background:var(--primary-light); color:var(--primary); cursor:pointer; font-size:11px; font-weight:600; white-space:nowrap; transition:var(--transition); }
+.step-mode-btn:hover { background:var(--primary); color:#fff; }
 .mode-toggle { display:flex; align-items:center; justify-content:center; gap:10px; font-size:13px; color:var(--text-secondary); }
 .mode-toggle span.active { color:var(--primary); font-weight:600; }
 .switch { position:relative; display:inline-block; width:44px; height:24px; }
