@@ -14,9 +14,9 @@
         <button
           v-for="tool in tools"
           :key="tool.id"
-          :class="['et-tool-btn', { active: tool.id === 'eyedropper' ? eyedropperActive : activeTool === tool.id }]"
+          :class="['et-tool-btn', { active: activeTool === tool.id }]"
           :title="tool.title"
-          @click="tool.id === 'eyedropper' ? $emit('toggleEyedropper') : $emit('update:activeTool', tool.id)"
+          @click="onToolClick(tool.id)"
         >
           {{ tool.label }}
           <span v-if="tool.key" class="et-key">{{ tool.key }}</span>
@@ -25,17 +25,15 @@
     </div>
 
     <!-- 3. 画笔颜色（画笔模式显示） -->
-    <div v-if="activeTool === 'brush'" class="et-section">
+    <div class="et-section">
       <div class="et-label">画笔颜色</div>
-      <div class="brush-row">
-        <ColorCardPicker
-          :colors="colorCardColors"
-          :modelValue="brushColor"
-          :cardName="cardName"
-          showEmpty
-          @update:modelValue="$emit('update:brushColor', $event)"
-        />
-      </div>
+      <ColorCardPicker
+        :colors="colorCardColors"
+        :modelValue="brushColor"
+        :cardName="cardName"
+        showEmpty
+        @update:modelValue="$emit('update:brushColor', $event)"
+      />
     </div>
 
     <!-- 4. 颜色列表 -->
@@ -107,14 +105,13 @@ const props = defineProps({
   sortDir: { type: String, default: 'asc' },
   canUndo: { type: Boolean, default: false },
   canRedo: { type: Boolean, default: false },
-  eyedropperActive: { type: Boolean, default: false },
 })
 defineEmits([
   'undo', 'redo',
   'update:activeTool', 'update:brushColor', 'update:zoomPercent',
   'highlightColor', 'replaceColorListClick',
   'toggleSort', 'resetView', 'clearHighlight', 'defaultSort',
-  'cancel', 'save', 'toggleEyedropper',
+  'cancel', 'save',
 ])
 
 const tools = [
@@ -124,6 +121,8 @@ const tools = [
   { id: 'eyedropper', label: '取色', key: 'R', title: '取色器 (R)' },
 ]
 // [僵尸代码] simplify 工具已移除，功能代码在 useEditorTools.js 中保留
+
+function onToolClick(id) { emit('update:activeTool', id) }
 
 function sortArrow(field) {
   if (props.sortField !== field) return ''

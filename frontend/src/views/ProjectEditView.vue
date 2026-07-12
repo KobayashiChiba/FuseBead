@@ -32,7 +32,6 @@
         :sortDir="sortDir"
         :canUndo="editorTools.canUndo.value"
         :canRedo="editorTools.canRedo.value"
-        :eyedropperActive="eyedropperActive"
         @undo="editorTools.undo()"
         @redo="editorTools.redo()"
         @update:activeTool="onToolChange"
@@ -46,7 +45,6 @@
         @defaultSort="sortField = 'position'; sortDir = 'asc'"
         @cancel="$router.back()"
         @save="onSave"
-        @toggleEyedropper="toggleEyedropper"
       />
     </div>
 
@@ -160,11 +158,8 @@ const colorCardColors = ref([])
 const colorCardName = ref('')
 const replaceDialog = reactive({ oldCode: null, oldHex: '', scope: 'cell', row: 0, col: 0 })
 const showSimplify = ref(false)
-const eyedropperActive = ref(false)
-function toggleEyedropper() {
-  eyedropperActive.value = !eyedropperActive.value
-  canvasRef.value.style.cursor = eyedropperActive.value ? 'crosshair' : (activeTool.value === 'drag' ? 'grab' : 'crosshair')
-}
+// const eyedropperActive = ref(false) — 已合并到 activeTool
+
 let lastBrushedCell = null
 
 // ── Drag ──
@@ -173,7 +168,6 @@ let dragStartX = 0, dragStartY = 0, dragStartPanX = 0, dragStartPanY = 0
 
 function handleMouseDown(e) {
   if (e.button !== 0) return
-  if (eyedropperActive.value) return  // 取色器模式下不触发拖拽/画笔
 
   if (activeTool.value !== 'drag') {
     dragging = true; dragged = false
@@ -234,12 +228,9 @@ function handleClick(e) {
   const code = gridData.value[cell.row]?.[cell.col]
 
   // 取色器
-  if (eyedropperActive.value) {
-    // 未知色号 → 设为空格
+  if (activeTool.value === 'eyedropper') {
     const picked = (code && !colorMap.value[code]) ? '' : (code || '')
     brushColor.value = picked
-    eyedropperActive.value = false
-    canvas.render()
     return
   }
 
@@ -323,7 +314,7 @@ function handleKeydown(e) {
   if (key === 'q') { onToolChange('drag') }
   if (key === 'w') { onToolChange('brush') }
   if (key === 'e') { onToolChange('replace') }
-  if (key === 'r') { toggleEyedropper() }
+  if (key === 'r') { onToolChange('eyedropper') }
 }
 
 // ── Save ──
