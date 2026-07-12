@@ -123,7 +123,7 @@ export function useEditorTools(gridData, colorMap, colorStats, renderFn, onEdit)
 
   // ── Brush ──
   function brushCell(row, col, newCode) {
-    if (!gridData.value[row] || !gridData.value[row][col]) return
+    if (!gridData.value[row]) return
     const oldCode = gridData.value[row][col]
     if (oldCode === newCode) return
     gridData.value[row][col] = newCode

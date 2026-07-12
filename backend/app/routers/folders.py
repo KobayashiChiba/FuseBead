@@ -5,6 +5,7 @@ from sqlalchemy.orm import Session
 from ..core.database import get_db
 from ..models.user import User
 from ..models.folder import Folder
+from ..models.project import BeadProject
 from ..schemas.folder import FolderCreate, FolderUpdate, FolderResponse
 from .auth import get_current_user
 
@@ -81,7 +82,6 @@ def update_folder(
         folder.sort_order = body.sort_order
     if body.thumbnail_project_id is not None:
         # Validate the project belongs to this user & folder
-        from ..models.project import BeadProject
         project = db.query(BeadProject).filter(
             BeadProject.id == body.thumbnail_project_id,
             BeadProject.user_id == current_user.id,
@@ -107,6 +107,16 @@ def delete_folder(
         raise HTTPException(status_code=404, detail="图库不存在")
     if folder.is_default:
         raise HTTPException(status_code=403, detail="默认图库不可删除")
+
+    # 转移项目到默认图库
+    default_folder = db.query(Folder).filter(
+        Folder.user_id == current_user.id, Folder.is_default == True
+    ).first()
+    if default_folder:
+        db.query(BeadProject).filter(
+            BeadProject.folder_id == folder_id, BeadProject.user_id == current_user.id
+        ).update({BeadProject.folder_id: default_folder.id})
+
     db.delete(folder)
     db.commit()
     return {"message": "已删除"}

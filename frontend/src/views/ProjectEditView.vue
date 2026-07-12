@@ -199,7 +199,6 @@ function handleMouseMove(e) {
       const cell = canvas.getCellFromEvent(e)
       if (cell && cell.row >= 0 && cell.row < project.value.grid_rows && cell.col >= 0 && cell.col < project.value.grid_cols) {
         const code = gridData.value[cell.row]?.[cell.col]
-        if (!code) return
         if (highlightCode.value && code !== highlightCode.value) return  // 高亮时只涂高亮色
         const key = `${cell.row},${cell.col}`
         if (key !== lastBrushedCell) {
@@ -227,7 +226,6 @@ function handleClick(e) {
   const code = gridData.value[cell.row]?.[cell.col]
 
   if (activeTool.value === 'brush') {
-    if (!code) return
     if (canvas.cellSize.value < 20) { toast('请放大到 20px 以上再涂色'); return }
     if (highlightCode.value && code !== highlightCode.value) return  // 高亮时只涂高亮色
     editorTools.brushCell(cell.row, cell.col, brushColor.value)
@@ -235,7 +233,6 @@ function handleClick(e) {
     return
   }
   if (activeTool.value === 'replace') {
-    if (!code) return
     if (canvas.cellSize.value < 20) { toast('请放大到 20px 以上再替换'); return }
     replaceDialog.oldCode = code
     replaceDialog.oldHex = colorMap.value[code] || '#ccc'
