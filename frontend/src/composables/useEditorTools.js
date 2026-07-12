@@ -101,8 +101,6 @@ export function useEditorTools(gridData, colorMap, colorStats, renderFn, onEdit)
   return {
     // History
     canUndo, canRedo, undo, redo, initHistory,
-    // Nearest
-    nearestMap, buildNearestMap,
     // Brush
     brushCell, brushAll,
     // Replace
