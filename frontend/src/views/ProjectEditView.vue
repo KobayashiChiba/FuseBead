@@ -323,6 +323,7 @@ function handleKeydown(e) {
   if (key === 'q') { onToolChange('drag') }
   if (key === 'w') { onToolChange('brush') }
   if (key === 'e') { onToolChange('replace') }
+  if (key === 'r') { toggleEyedropper() }
 }
 
 // ── Save ──

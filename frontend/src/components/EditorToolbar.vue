@@ -14,9 +14,9 @@
         <button
           v-for="tool in tools"
           :key="tool.id"
-          :class="['et-tool-btn', { active: activeTool === tool.id }]"
+          :class="['et-tool-btn', { active: tool.id === 'eyedropper' ? eyedropperActive : activeTool === tool.id }]"
           :title="tool.title"
-          @click="$emit('update:activeTool', tool.id)"
+          @click="tool.id === 'eyedropper' ? $emit('toggleEyedropper') : $emit('update:activeTool', tool.id)"
         >
           {{ tool.label }}
           <span v-if="tool.key" class="et-key">{{ tool.key }}</span>
@@ -35,7 +35,6 @@
           showEmpty
           @update:modelValue="$emit('update:brushColor', $event)"
         />
-        <button class="eyedropper-btn" :class="{ active: eyedropperActive }" @click="$emit('toggleEyedropper')" title="取色器">💉</button>
       </div>
     </div>
 
@@ -122,8 +121,9 @@ const tools = [
   { id: 'drag', label: '拖拽', key: 'Q', title: '拖拽查看 (Q)' },
   { id: 'brush', label: '画笔', key: 'W', title: '画笔涂色 (W)' },
   { id: 'replace', label: '替换', key: 'E', title: '替换颜色 (E)' },
-  { id: 'simplify', label: '简化', key: '', title: '颜色简化' },
+  { id: 'eyedropper', label: '取色', key: 'R', title: '取色器 (R)' },
 ]
+// [僵尸代码] simplify 工具已移除，功能代码在 useEditorTools.js 中保留
 
 function sortArrow(field) {
   if (props.sortField !== field) return ''
