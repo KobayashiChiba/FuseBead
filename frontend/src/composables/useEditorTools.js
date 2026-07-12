@@ -131,10 +131,15 @@ export function useEditorTools(gridData, colorMap, colorStats, renderFn, onEdit)
     renderFn()
   }
 
+  function _match(oldCode, code) {
+    if (oldCode === 'ZZ') return code && !colorMap.value[code]  // 匹配所有未知色号
+    return code === oldCode
+  }
+
   function brushAll(oldCode, newCode) {
     for (let r = 0; r < gridData.value.length; r++) {
       for (let c = 0; c < gridData.value[r].length; c++) {
-        if (gridData.value[r][c] === oldCode) {
+        if (_match(oldCode, gridData.value[r][c])) {
           gridData.value[r][c] = newCode
         }
       }
@@ -153,7 +158,7 @@ export function useEditorTools(gridData, colorMap, colorStats, renderFn, onEdit)
   function replaceAll(oldCode, newCode) {
     for (let r = 0; r < gridData.value.length; r++) {
       for (let c = 0; c < gridData.value[r].length; c++) {
-        if (gridData.value[r][c] === oldCode) {
+        if (_match(oldCode, gridData.value[r][c])) {
           gridData.value[r][c] = newCode
         }
       }
