@@ -27,13 +27,16 @@
     <!-- 3. 画笔颜色（画笔模式显示） -->
     <div v-if="activeTool === 'brush'" class="et-section">
       <div class="et-label">画笔颜色</div>
-      <ColorCardPicker
-        :colors="colorCardColors"
-        :modelValue="brushColor"
-        :cardName="cardName"
-        showEmpty
-        @update:modelValue="$emit('update:brushColor', $event)"
-      />
+      <div class="brush-row">
+        <ColorCardPicker
+          :colors="colorCardColors"
+          :modelValue="brushColor"
+          :cardName="cardName"
+          showEmpty
+          @update:modelValue="$emit('update:brushColor', $event)"
+        />
+        <button class="eyedropper-btn" :class="{ active: eyedropperActive }" @click="$emit('toggleEyedropper')" title="取色器">💉</button>
+      </div>
     </div>
 
     <!-- 4. 颜色列表 -->
@@ -105,13 +108,14 @@ const props = defineProps({
   sortDir: { type: String, default: 'asc' },
   canUndo: { type: Boolean, default: false },
   canRedo: { type: Boolean, default: false },
+  eyedropperActive: { type: Boolean, default: false },
 })
 defineEmits([
   'undo', 'redo',
   'update:activeTool', 'update:brushColor', 'update:zoomPercent',
   'highlightColor', 'replaceColorListClick',
   'toggleSort', 'resetView', 'clearHighlight', 'defaultSort',
-  'cancel', 'save',
+  'cancel', 'save', 'toggleEyedropper',
 ])
 
 const tools = [
@@ -247,4 +251,16 @@ function sortArrow(field) {
 }
 .zoom-control input { flex: 1; accent-color: var(--primary); }
 .zoom-value { font-size: 12px; color: var(--text-secondary); width: 40px; text-align: right; }
+
+.brush-row { display: flex; align-items: flex-start; gap: 6px; }
+.brush-row .ccp-trigger { flex: 1; }
+.eyedropper-btn {
+  width: 32px; height: 36px;
+  border: 2px solid var(--border); border-radius: var(--radius-sm);
+  background: #fff; cursor: pointer; font-size: 16px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.eyedropper-btn:hover { border-color: var(--primary); background: var(--primary-light); }
+.eyedropper-btn.active { border-color: var(--primary); background: var(--primary); color: #fff; }
 </style>
