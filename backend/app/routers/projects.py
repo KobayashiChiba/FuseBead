@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from pathlib import Path
 
 from ..core.database import get_db
+from ..core.config import settings
 from ..models.user import User
 from ..models.folder import Folder
 from ..models.project import BeadProject, ProjectGrid, ProjectProgress
@@ -293,23 +294,31 @@ def update_progress(
     db: Session = Depends(get_db),
 ):
     """更新拼豆进度（合并更新）"""
+    from sqlalchemy import update, select
+
     project = db.query(BeadProject).filter(
         BeadProject.id == project_id, BeadProject.user_id == current_user.id
     ).first()
     if not project:
         raise HTTPException(status_code=404, detail="项目不存在")
 
-    progress = project.progress
-    if not progress:
-        progress = ProjectProgress(project_id=project.id, color_progress={})
-        db.add(progress)
+    # Ensure row exists
+    existing = db.execute(
+        select(ProjectProgress).where(ProjectProgress.project_id == project_id)
+    ).scalar()
+    if not existing:
+        db.add(ProjectProgress(project_id=project_id, color_progress={}))
         db.flush()
 
-    current = progress.color_progress or {}
-    current.update(body.color_progress)
-    progress.color_progress = current
+    # Direct UPDATE — no ORM tracking needed
+    db.execute(
+        update(ProjectProgress)
+        .where(ProjectProgress.project_id == project_id)
+        .values(color_progress=body.color_progress)
+    )
     db.commit()
-    return ProgressResponse(color_progress=progress.color_progress)
+
+    return ProgressResponse(color_progress=body.color_progress)
 
 
 @router.get("/{project_id}/render")
@@ -340,3 +349,30 @@ def render_project(
     img = render_bead_art(project.grid.grid_data, color_map, title=project.name)
     _, buf = cv2.imencode(".png", img)
     return Response(content=buf.tobytes(), media_type="image/png")
+
+
+@router.get("/{project_id}/source-image")
+def get_source_image(
+    project_id: int,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """返回项目原图（用于重新识别时的裁剪步骤）"""
+    project = db.query(BeadProject).filter(
+        BeadProject.id == project_id, BeadProject.user_id == current_user.id
+    ).first()
+    if not project or not project.source_image:
+        raise HTTPException(status_code=404, detail="原图不存在")
+
+    source_path = Path(settings.UPLOAD_DIR) / project.source_image
+    if not source_path.exists():
+        raise HTTPException(status_code=404, detail="原图文件丢失")
+
+    image_bytes = source_path.read_bytes()
+    ext = source_path.suffix.lower()
+    media_type = {
+        ".png": "image/png", ".jpg": "image/jpeg",
+        ".jpeg": "image/jpeg", ".webp": "image/webp",
+        ".bmp": "image/bmp",
+    }.get(ext, "image/png")
+    return Response(content=image_bytes, media_type=media_type)

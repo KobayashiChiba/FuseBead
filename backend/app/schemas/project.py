@@ -51,6 +51,17 @@ class ProjectResponse(BaseModel):
     color_card_id: Optional[int] = None
     status: str
     thumbnail: Optional[str] = None
+    color_count: Optional[int] = None
+    source_image: Optional[str] = None
+    ref_x: float = 0
+    ref_y: float = 0
+    cell_size: float = 20
+    crop_x: float = 0
+    crop_y: float = 0
+    crop_w: float = 0
+    crop_h: float = 0
+    mode: str = "dominant"
+    merge_threshold: int = 25
     created_at: datetime
     updated_at: datetime
 
@@ -58,14 +69,14 @@ class ProjectResponse(BaseModel):
 
 
 class ProjectDetailResponse(ProjectResponse):
-    grid_data: list[list[str]]  # 二维色号表
+    grid_data: list[list[str]] = []  # 二维色号表
 
 
 class ProgressResponse(BaseModel):
-    color_progress: dict[str, str] = {}  # 色号 → 状态
+    color_progress: dict[str, bool] = {}
 
     model_config = {"from_attributes": True}
 
 
 class ProgressUpdate(BaseModel):
-    color_progress: dict[str, str] = {}  # 色号 → 状态（合并更新）
+    color_progress: dict[str, bool] = {}

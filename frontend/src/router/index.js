@@ -44,15 +44,16 @@ const routes = [
     meta: { layout: 'editor', requireAuth: true },
   },
   {
-    path: '/project/:id/recognize',
-    name: 'Recognize',
-    component: () => import('@/views/RecognizeView.vue'),
-    meta: { layout: 'editor', requireAuth: true },
-  },
-  {
     path: '/project/:id',
     name: 'ProjectDetail',
     component: () => import('@/views/ProjectDetailView.vue'),
+    meta: { layout: 'editor', requireAuth: true },
+  },
+
+  {
+    path: '/project/:id/edit',
+    name: 'ProjectEdit',
+    component: () => import('@/views/ProjectEditView.vue'),
     meta: { layout: 'editor', requireAuth: true },
   },
 

@@ -239,3 +239,49 @@ def render_bead_art(color_codes, color_map, title="拼豆图纸", cell_size=60):
     # ── 转为 OpenCV BGR ──
     return cv2.cvtColor(np.array(img), cv2.COLOR_RGB2BGR)
 
+
+def render_thumbnail(color_codes, color_map, size=256):
+    """生成缩略图：取网格中心正方形区域，纯色块无网格线无文字，缩放至 size×size
+
+    返回 base64 PNG 字符串（含 data:image/png;base64, 前缀）
+    """
+    import base64
+    from io import BytesIO
+
+    rows = len(color_codes)
+    cols = len(color_codes[0]) if rows > 0 else 0
+    if rows == 0 or cols == 0:
+        return None
+
+    # 取中心正方形
+    side = min(rows, cols)
+    r0 = (rows - side) // 2
+    c0 = (cols - side) // 2
+
+    # 纯色块渲染（一个格子一个像素）
+    cell_px = 1
+    img_w = side * cell_px
+    img_h = side * cell_px
+
+    img = Image.new("RGB", (img_w, img_h), (255, 255, 255))
+    draw = ImageDraw.Draw(img)
+
+    for r in range(side):
+        for c in range(side):
+            code = color_codes[r0 + r][c0 + c]
+            if code and code in color_map:
+                rgb = color_map[code]
+                fill = (rgb[0], rgb[1], rgb[2])
+            else:
+                fill = (245, 245, 245)
+            draw.rectangle([c, r, c + cell_px, r + cell_px], fill=fill)
+
+    # 缩放到目标尺寸
+    img = img.resize((size, size), Image.NEAREST)
+
+    # 编码为 PNG base64
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    b64 = base64.b64encode(buf.getvalue()).decode("ascii")
+    return f"data:image/png;base64,{b64}"
+

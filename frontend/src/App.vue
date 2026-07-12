@@ -55,7 +55,7 @@ const layoutProps = computed(() => {
   }
   if (layout === 'editor') {
     return {
-      title: route.name === 'ProjectCreate' ? '新建项目' : route.name === 'Recognize' ? '重新识别' : '项目详情',
+      title: route.name === 'ProjectCreate' ? '新建项目' : '项目详情',
       nickname: user.nickname || '',
     }
   }

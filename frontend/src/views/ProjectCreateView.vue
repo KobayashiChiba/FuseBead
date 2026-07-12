@@ -2,7 +2,7 @@
   <div class="create-page">
     <div :class="['toast', { show: toastMsg }]" v-if="toastMsg">{{ toastMsg }}</div>
 
-    <div class="step-indicators" v-show="!(currentStep === 2 || (currentStep === 3 && showProgress))">
+    <div class="step-indicators" v-show="!(reRecognizeId && currentStep === 3) && !(currentStep === 2 || (currentStep === 3 && showProgress))">
       <template v-for="(s, i) in steps" :key="s.key">
         <div :class="['step-dot', { active: currentStep === i, done: currentStep > i }]" @click="goStep(i)">
           <span class="circle">{{ currentStep > i ? '✓' : i + 1 }}</span>
@@ -28,7 +28,7 @@
           <img :src="state.originalSrc" class="preview-img" />
           <div class="file-info">{{ state.fileName }} ({{ state.origW }}×{{ state.origH }})</div>
           <div class="btn-group center mt-16">
-            <button class="btn btn-outline" @click="resetUpload">重新选择</button>
+            <button v-if="!reRecognizeId" class="btn btn-outline" @click="resetUpload">重新选择</button>
             <button class="btn btn-primary" @click="goStep(1)">下一步：裁剪</button>
           </div>
         </div>
@@ -36,7 +36,10 @@
 
       <!-- ═══════ Step 2: Crop ═══════ -->
       <div :class="['step-card', { active: currentStep === 1 }]">
-        <h2>✂️ 裁剪区域</h2>
+        <div class="step-header-row">
+          <h2>✂️ 裁剪区域</h2>
+          <button class="btn btn-outline btn-sm" @click="openCropZoom" v-show="currentStep === 1 && cropSrc">🔍 放大</button>
+        </div>
         <p class="step-desc">拖拽裁剪框选择包含网格的图纸区域</p>
         <div class="crop-container" v-show="currentStep === 1">
           <vue-cropper
@@ -50,6 +53,28 @@
             :cropBoxResizable="true"
             style="height: 600px"
           />
+        </div>
+        <!-- 裁剪全屏放大遮罩 -->
+        <div class="crop-zoom-overlay" v-show="cropZoomOpen && currentStep === 1" @click.self="closeCropZoom">
+          <div class="crop-zoom-container">
+            <vue-cropper
+              v-if="cropZoomOpen"
+              ref="zoomCropperRef"
+              :src="cropSrc"
+              :viewMode="1"
+              dragMode="crop"
+              :autoCropArea="0.8"
+              :cropBoxMovable="true"
+              :cropBoxResizable="true"
+              :zoomOnWheel="true"
+              style="height: 100%"
+              @ready="onZoomCropperReady"
+            />
+          </div>
+          <div class="crop-zoom-actions">
+            <button class="btn btn-outline" @click="closeCropZoom">取消</button>
+            <button class="btn btn-primary" @click="applyCropZoom">确认</button>
+          </div>
         </div>
         <div class="btn-group between mt-16">
           <button class="btn btn-outline" @click="goStep(0)">上一步</button>
@@ -86,8 +111,15 @@
         </div>
         <div class="pos-toolbar">
           <div class="pos-zone size-control">
-            <div class="size-input-area"><input type="number" class="size-input" v-model.number="state.cellSize" min="5" max="100" step="1" /></div>
-            <div class="size-btns"><button class="size-btn" @click="state.cellSize++">+</button><button class="size-btn" @click="state.cellSize>5 && state.cellSize--">−</button></div>
+            <div class="size-input-area"><input type="number" class="size-input" v-model.number="state.cellSize" min="5" max="100" step="0.5" /></div>
+            <div class="size-btns">
+              <button class="size-btn" @click="adjCellSize(1)">+</button>
+              <button class="size-btn" @click="adjCellSize(-1)">−</button>
+            </div>
+            <div class="size-btns">
+              <button class="size-btn" @click="adjCellSize(0.1)">+</button>
+              <button class="size-btn" @click="adjCellSize(-0.1)">−</button>
+            </div>
           </div>
           <div class="pos-zone mode-toggle">
             <span :class="{ active: !gridMode }">九宫格</span>
@@ -104,6 +136,43 @@
           <div class="pos-zone magnifier-zone">
             <div class="magnifier-label">🔍 放大镜</div>
             <canvas ref="magnifierCanvasRef" class="magnifier-canvas"></canvas>
+          </div>
+          <div class="pos-zone trim-zone">
+            <div class="trim-header">🔧 修边</div>
+            <div class="trim-hint" v-if="!gridMode">请切换到网格模式</div>
+            <div class="trim-controls" v-else>
+              <div class="trim-row">
+                <span class="trim-label">上</span>
+                <button class="trim-btn" @click="trimTop = Math.max(0, trimTop - 1)" :disabled="trimTop <= 0">−</button>
+                <span class="trim-val">{{ trimTop }}</span>
+                <button class="trim-btn" @click="trimTop = Math.min(maxTrimTop, trimTop + 1)" :disabled="trimTop >= maxTrimTop">+</button>
+                <span class="trim-unit">行</span>
+              </div>
+              <div class="trim-row">
+                <span class="trim-label">左</span>
+                <button class="trim-btn" @click="trimLeft = Math.max(0, trimLeft - 1)" :disabled="trimLeft <= 0">−</button>
+                <span class="trim-val">{{ trimLeft }}</span>
+                <button class="trim-btn" @click="trimLeft = Math.min(maxTrimLeft, trimLeft + 1)" :disabled="trimLeft >= maxTrimLeft">+</button>
+                <span class="trim-unit">列</span>
+              </div>
+              <div class="trim-row">
+                <span class="trim-label">下</span>
+                <button class="trim-btn" @click="trimBottom = Math.max(0, trimBottom - 1)" :disabled="trimBottom <= 0">−</button>
+                <span class="trim-val">{{ trimBottom }}</span>
+                <button class="trim-btn" @click="trimBottom = Math.min(maxTrimBottom, trimBottom + 1)" :disabled="trimBottom >= maxTrimBottom">+</button>
+                <span class="trim-unit">行</span>
+              </div>
+              <div class="trim-row">
+                <span class="trim-label">右</span>
+                <button class="trim-btn" @click="trimRight = Math.max(0, trimRight - 1)" :disabled="trimRight <= 0">−</button>
+                <span class="trim-val">{{ trimRight }}</span>
+                <button class="trim-btn" @click="trimRight = Math.min(maxTrimRight, trimRight + 1)" :disabled="trimRight >= maxTrimRight">+</button>
+                <span class="trim-unit">列</span>
+              </div>
+              <div class="trim-summary" v-if="trimTop > 0 || trimBottom > 0 || trimLeft > 0 || trimRight > 0">
+                修边后: {{ state.gridRows - trimTop - trimBottom }} × {{ state.gridCols - trimLeft - trimRight }}
+              </div>
+            </div>
           </div>
           <div class="pos-zone pos-actions">
             <div class="btn-group">
@@ -137,8 +206,15 @@
           </div>
         </div>
         <div class="form-group mt-16" v-show="!showProgress"><label>颜色合并阈值</label><input type="number" class="form-input" v-model.number="mergeThreshold" min="0" max="100" placeholder="15" /></div>
-        <div class="form-group mt-16" v-show="!showProgress"><label>项目名称</label><input class="form-input" v-model="projectName" placeholder="未命名拼豆图" maxlength="100" /></div>
         <div class="form-group mt-16" v-show="!showProgress"><label>色卡</label><select class="form-input" v-model="colorCardId"><option v-for="c in colorCards" :key="c.id" :value="c.id">{{ c.name }} ({{ c.color_count }}色)</option></select></div>
+        <div class="form-group mt-16" v-show="!showProgress && reRecognizeId">
+          <label>识别方式</label>
+          <div class="recognize-mode-toggle">
+            <button :class="['mode-btn', { active: !createNew }]" @click="createNew = false">覆盖当前项目</button>
+            <button :class="['mode-btn', { active: createNew }]" @click="createNew = true">创建为新项目</button>
+          </div>
+        </div>
+        <div class="form-group mt-16" v-show="!showProgress && (!reRecognizeId || createNew)"><label>项目名称</label><input class="form-input" v-model="projectName" placeholder="未命名拼豆图" maxlength="100" /></div>
         <div class="progress-wrap" v-if="showProgress">
           <div class="progress-bar-outer">
             <div class="progress-bar-inner" :style="{width: progress+'%'}">
@@ -160,8 +236,15 @@
             </div>
           </div>
         </div>
-        <div class="btn-group between mt-16" v-show="!showProgress">
+        <div class="btn-group between mt-16" v-show="!showProgress && !reRecognizeId">
           <button class="btn btn-outline" @click="goStep(2)">上一步</button>
+          <button class="btn btn-primary" @click="startRecog" :disabled="recognizing">{{ recognizing ? '识别中...' : '开始识别' }}</button>
+        </div>
+        <div class="btn-group between mt-16" v-show="!showProgress && reRecognizeId">
+          <div>
+            <button class="btn btn-outline" @click="cancelReRecognize">取消</button>
+            <button class="btn btn-outline" @click="goRecrop" style="margin-left:8px">重新裁剪</button>
+          </div>
           <button class="btn btn-primary" @click="startRecog" :disabled="recognizing">{{ recognizing ? '识别中...' : '开始识别' }}</button>
         </div>
         <div class="btn-group between mt-16" v-if="showProgress && progress < 100">
@@ -173,8 +256,15 @@
 </template>
 
 <script setup>
-import { ref, reactive, watch, onMounted, nextTick } from 'vue'
+import { ref, reactive, watch, computed, onMounted, nextTick } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
 import api from '@/utils/api'
+
+const router = useRouter()
+const route = useRoute()
+const reRecognizeId = ref(null)
+const createNew = ref(false)
+const currentFolderId = ref(null)
 
 const state = reactive({
   fileName: '', originalSrc: '', origW: 0, origH: 0, originalImg: null,
@@ -188,6 +278,16 @@ const state = reactive({
 const currentStep = ref(0)
 const algo = ref('dominant')
 const gridMode = ref(false)
+const trimTop = ref(0)
+const trimBottom = ref(0)
+const trimLeft = ref(0)
+const trimRight = ref(0)
+const cropZoomOpen = ref(false)
+const zoomCropperRef = ref(null)
+const maxTrimTop = computed(() => Math.max(0, state.gridRows - trimBottom.value - 1))
+const maxTrimBottom = computed(() => Math.max(0, state.gridRows - trimTop.value - 1))
+const maxTrimLeft = computed(() => Math.max(0, state.gridCols - trimRight.value - 1))
+const maxTrimRight = computed(() => Math.max(0, state.gridCols - trimLeft.value - 1))
 const projectName = ref('')
 const mergeThreshold = ref(15)
 const colorCardId = ref(null)
@@ -207,10 +307,38 @@ function goStep(n) {
   if (n > currentStep.value) {
     if (n >= 1 && !state.originalSrc) { toast('请先上传图片'); return }
     if (n >= 2 && !state.croppedSrc) { toast('请先完成裁剪'); return }
+    // 从定位进入识别时，应用修边
+    if (n >= 3 && currentStep.value === 2) applyTrimToCrop()
   }
   currentStep.value = n
   if (n === 1) nextTick(() => setTimeout(initCrop, 100))
   if (n === 2) nextTick(() => setTimeout(initPosition, 100))
+}
+
+// ═══════ 修边应用 ═══════
+function applyTrimToCrop() {
+  if (trimTop.value <= 0 && trimBottom.value <= 0 && trimLeft.value <= 0 && trimRight.value <= 0) return
+  const cs = state.cellSize
+  state.cropX += trimLeft.value * cs
+  state.cropY += trimTop.value * cs
+  state.cropW -= (trimLeft.value + trimRight.value) * cs
+  state.cropH -= (trimTop.value + trimBottom.value) * cs
+  // 重新生成裁后图片
+  const c = document.createElement('canvas')
+  c.width = state.cropW; c.height = state.cropH
+  c.getContext('2d').drawImage(state.originalImg, state.cropX, state.cropY, state.cropW, state.cropH, 0, 0, state.cropW, state.cropH)
+  state.croppedSrc = c.toDataURL()
+  state.gridX -= trimLeft.value * cs
+  state.gridY -= trimTop.value * cs
+  // 更新裁后图片对象（initPosition 会用到）
+  const img = new Image()
+  img.src = state.croppedSrc
+  state.croppedImg = img
+  // 重置修边值（图像已切，不再需要）
+  trimTop.value = 0
+  trimBottom.value = 0
+  trimLeft.value = 0
+  trimRight.value = 0
 }
 
 // ═══════ Step 1 ═══════
@@ -238,7 +366,7 @@ function loadImage(file) {
 }
 function onFileSelect(e) { if (e.target.files[0]) loadImage(e.target.files[0]) }
 function onDrop(e) { if (e.dataTransfer.files[0]) loadImage(e.dataTransfer.files[0]) }
-function resetUpload() { state.originalSrc = ''; state.originalImg = null; state.fileName = ''; state.originalFile = null; state.croppedSrc = ''; state.croppedImg = null; fileInputRef.value.value = '' }
+function resetUpload() { window.location.reload() }
 
 // ═══════ Step 2: Crop ═══════
 import VueCropper from 'vue-cropperjs'
@@ -269,6 +397,31 @@ function doCrop() {
   const img = new Image()
   img.onload = () => { state.croppedImg = img; goStep(2) }
   img.src = state.croppedSrc
+}
+
+// ═══════ Crop Zoom ═══════
+const pendingZoomData = ref(null)
+
+function openCropZoom() {
+  cropZoomOpen.value = true
+  pendingZoomData.value = cropperRef.value?.cropper?.getData() || null
+}
+
+function onZoomCropperReady() {
+  if (pendingZoomData.value) {
+    zoomCropperRef.value?.cropper?.setData(pendingZoomData.value)
+    pendingZoomData.value = null
+  }
+}
+
+function applyCropZoom() {
+  const data = zoomCropperRef.value?.cropper?.getData()
+  if (data) cropperRef.value?.cropper?.setData(data)
+  cropZoomOpen.value = false
+}
+
+function closeCropZoom() {
+  cropZoomOpen.value = false
 }
 
 // ═══════ Step 3: Position ═══════
@@ -331,9 +484,37 @@ function drawPos() {
     const rows = Math.floor((posImg.height - top) / cs); const cols = Math.floor((posImg.width - left) / cs)
     state.gridRows = rows; state.gridCols = cols
     const gL = posOffX + left * posScale; const gT = posOffY + top * posScale
+    // 修边红色遮罩（被裁掉区域）
+    if (trimTop.value > 0 || trimBottom.value > 0 || trimLeft.value > 0 || trimRight.value > 0) {
+      const cellPx = cds
+      ctx.fillStyle = 'rgba(255,50,50,0.18)'
+      if (trimTop.value > 0) ctx.fillRect(gL, gT, cols * cellPx, trimTop.value * cellPx)
+      if (trimBottom.value > 0) ctx.fillRect(gL, gT + (rows - trimBottom.value) * cellPx, cols * cellPx, trimBottom.value * cellPx)
+      if (trimLeft.value > 0) ctx.fillRect(gL, gT, trimLeft.value * cellPx, rows * cellPx)
+      if (trimRight.value > 0) ctx.fillRect(gL + (cols - trimRight.value) * cellPx, gT, trimRight.value * cellPx, rows * cellPx)
+      // 保留区域加粗绿色边框
+      const kX = gL + trimLeft.value * cellPx
+      const kY = gT + trimTop.value * cellPx
+      const kW = (cols - trimLeft.value - trimRight.value) * cellPx
+      const kH = (rows - trimTop.value - trimBottom.value) * cellPx
+      ctx.strokeStyle = '#00D4AA'
+      ctx.lineWidth = 2.5
+      ctx.setLineDash([])
+      ctx.strokeRect(kX, kY, kW, kH)
+      ctx.lineWidth = 1
+    }
     ctx.strokeStyle = '#00D4AA'; ctx.lineWidth = 1
-    for (let r = 0; r <= rows; r++) { ctx.beginPath(); ctx.moveTo(gL, gT + r * cds); ctx.lineTo(gL + cols * cds, gT + r * cds); ctx.stroke() }
-    for (let c = 0; c <= cols; c++) { ctx.beginPath(); ctx.moveTo(gL + c * cds, gT); ctx.lineTo(gL + c * cds, gT + rows * cds); ctx.stroke() }
+    const hasTrim = trimTop.value > 0 || trimBottom.value > 0 || trimLeft.value > 0 || trimRight.value > 0
+    for (let r = 0; r <= rows; r++) {
+      ctx.beginPath(); ctx.moveTo(gL, gT + r * cds); ctx.lineTo(gL + cols * cds, gT + r * cds)
+      ctx.strokeStyle = (hasTrim && (r < trimTop.value || r > rows - trimBottom.value)) ? 'rgba(255,50,50,0.5)' : '#00D4AA'
+      ctx.stroke()
+    }
+    for (let c = 0; c <= cols; c++) {
+      ctx.beginPath(); ctx.moveTo(gL + c * cds, gT); ctx.lineTo(gL + c * cds, gT + rows * cds)
+      ctx.strokeStyle = (hasTrim && (c < trimLeft.value || c > cols - trimRight.value)) ? 'rgba(255,50,50,0.5)' : '#00D4AA'
+      ctx.stroke()
+    }
     const rx = posOffX + state.refX * posScale, ry = posOffY + state.refY * posScale
     ctx.strokeStyle = '#FF4500'; ctx.lineWidth = 2; ctx.strokeRect(rx, ry, cds, cds)
     ctx.fillStyle = 'rgba(255,69,0,0.15)'; ctx.fillRect(rx, ry, cds, cds)
@@ -428,31 +609,84 @@ function posMouseMove(e) {
     state.gridW = cs * 3; state.gridH = cs * 3
     drawPos()
   } else {
-    state.gridX = Math.max(0, posStart.gx + mx - posStart.x)
-    state.gridY = Math.max(0, posStart.gy + my - posStart.y)
+    const maxX = posImg.width - state.cellSize * 3
+    const maxY = posImg.height - state.cellSize * 3
+    state.gridX = Math.max(0, Math.min(maxX, posStart.gx + mx - posStart.x))
+    state.gridY = Math.max(0, Math.min(maxY, posStart.gy + my - posStart.y))
     state.refX = state.gridX + state.cellSize; state.refY = state.gridY + state.cellSize; drawPos()
   }
 }
-function posMouseUp() { posDragging = false; posResizeHandle = -1; drawPos() }
+function posMouseUp() { posDragging = false; posResizeHandle = -1; clampRefCell(); drawPos() }
+function clampRefCell() {
+  const cs = state.cellSize
+  const maxX = posImg.width - cs * 3
+  const maxY = posImg.height - cs * 3
+  state.gridX = Math.max(0, Math.min(maxX, state.gridX))
+  state.gridY = Math.max(0, Math.min(maxY, state.gridY))
+  state.refX = state.gridX + cs
+  state.refY = state.gridY + cs
+}
 let prevCellSize = state.cellSize
-watch([() => state.cellSize, () => state.gridX, () => state.gridY, gridMode], (newVals) => {
+function adjCellSize(delta) {
+  const v = Math.round((state.cellSize + delta) * 10) / 10
+  state.cellSize = Math.max(5, Math.min(100, v))
+}
+watch([() => state.cellSize, () => state.gridX, () => state.gridY, gridMode, trimTop, trimBottom, trimLeft, trimRight], (newVals) => {
   if (currentStep.value === 2) {
     const [newCellSize] = newVals
     if (prevCellSize !== newCellSize) {
       state.gridX += prevCellSize - newCellSize
       state.gridY += prevCellSize - newCellSize
       prevCellSize = newCellSize
+      clampRefCell()
     }
     state.gridW = state.cellSize * 3; state.gridH = state.cellSize * 3
     state.refX = state.gridX + state.cellSize; state.refY = state.gridY + state.cellSize
+    // Clamp trim values to new grid bounds
+    trimTop.value = Math.min(trimTop.value, maxTrimTop.value)
+    trimBottom.value = Math.min(trimBottom.value, maxTrimBottom.value)
+    trimLeft.value = Math.min(trimLeft.value, maxTrimLeft.value)
+    trimRight.value = Math.min(trimRight.value, maxTrimRight.value)
     drawPos()
   }
 })
 
 // ═══════ Step 4 ═══════
-function startRecog() {
-  if (!state.originalFile) { toast('请先上传图片'); return }
+async function startRecog() {
   if (!colorCardId.value) { toast('请选择色卡'); return }
+
+  // Re-recognize mode: call JSON API directly
+  if (reRecognizeId.value) {
+    recognizing.value = true
+    showProgress.value = true
+    progress.value = 50
+    progressMessage.value = '正在重新识别...'
+
+    try {
+      const body = {
+        ref_x: state.refX, ref_y: state.refY, cell_size: state.cellSize,
+        color_card_id: colorCardId.value, mode: algo.value,
+        merge_threshold: mergeThreshold.value, create_new: createNew.value,
+      }
+      if (state.cropW > 0 && state.cropH > 0) {
+        body.crop = { x: state.cropX, y: state.cropY, w: state.cropW, h: state.cropH }
+      }
+      const res = await api.post(`/projects/${reRecognizeId.value}/recognize`, body)
+      recognizing.value = false
+      state.projectId = res.data.id
+      resultSummary.value = `共 ${res.data.grid_rows} 行 × ${res.data.grid_cols} 列`
+      progress.value = 100
+      progressMessage.value = '识别完成'
+    } catch (e) {
+      recognizing.value = false
+      progressMessage.value = '✗ 识别失败: ' + (e.response?.data?.detail || '未知错误')
+      toast('识别失败')
+    }
+    return
+  }
+
+  // Normal creation: SSE stream
+  if (!state.originalFile) { toast('请先上传图片'); return }
 
   recognizing.value = true
   showProgress.value = true
@@ -462,6 +696,7 @@ function startRecog() {
   const formData = new FormData()
   formData.append('image', state.originalFile)
   formData.append('name', projectName.value || '未命名拼豆图')
+  if (currentFolderId.value) formData.append('folder_id', currentFolderId.value)
   formData.append('color_card_id', colorCardId.value)
   formData.append('ref_x', state.refX)
   formData.append('ref_y', state.refY)
@@ -531,23 +766,102 @@ function cancelRecog() {
   progress.value = 0
   progressMessage.value = ''
   recognizing.value = false
-  goStep(2)
+  goStep(reRecognizeId.value ? 3 : 2)
 }
 
 function goToResult() {
-  if (state.projectId) {
-    window.location.href = '/project/' + state.projectId
+  router.push(`/project/${state.projectId || reRecognizeId.value}`)
+}
+
+// ═══════ 重新识别 ═══════
+async function loadReRecognizeData() {
+  try {
+    const res = await api.get(`/projects/${reRecognizeId.value}`)
+    const p = res.data
+
+    // Pre-fill recognition params only (crop/position come from existing project)
+    algo.value = p.mode || 'dominant'
+    mergeThreshold.value = p.merge_threshold || 25
+    colorCardId.value = p.color_card_id
+    projectName.value = p.name
+
+    // Pre-fill crop/position params (used directly by re-recognize API call)
+    state.cropX = p.crop_x || 0
+    state.cropY = p.crop_y || 0
+    state.cropW = p.crop_w || 0
+    state.cropH = p.crop_h || 0
+    state.refX = p.ref_x || 0
+    state.refY = p.ref_y || 0
+    state.cellSize = p.cell_size || 20
+    state.gridRows = p.grid_rows || 0
+    state.gridCols = p.grid_cols || 0
+
+    // Load source image (also convert to File for potential re-crop flow)
+    state.fileName = p.source_image || '原图'
+    const srcUrl = `/api/projects/${reRecognizeId.value}/source-image`
+    const token = localStorage.getItem('token') || ''
+    const imgRes = await fetch(srcUrl, { headers: token ? { Authorization: `Bearer ${token}` } : {} })
+    if (!imgRes.ok) throw new Error('加载原图失败')
+    const blob = await imgRes.blob()
+    state.originalSrc = URL.createObjectURL(blob)
+    state.originalFile = new File([blob], state.fileName, { type: blob.type || 'image/png' })
+
+    const img = new Image()
+    await new Promise((resolve, reject) => {
+      img.onload = () => {
+        state.originalImg = img
+        state.origW = img.width
+        state.origH = img.height
+        resolve()
+      }
+      img.onerror = reject
+      img.src = state.originalSrc
+    })
+
+    // Jump straight to step 3 (recognize) — no crop/position editing
+    currentStep.value = 3
+  } catch (e) {
+    toast('加载项目数据失败')
+    router.push('/')
   }
 }
 
+function cancelReRecognize() {
+  router.push(`/project/${reRecognizeId.value}`)
+}
+
+function goRecrop() {
+  state.cropX = 0; state.cropY = 0; state.cropW = 0; state.cropH = 0
+  state.refX = 0; state.refY = 0
+  state.gridRows = 0; state.gridCols = 0
+  state.gridX = 0; state.gridY = 0; state.gridW = 0; state.gridH = 0
+  state.croppedSrc = ''; state.croppedImg = null
+  state.cellSize = 20
+  trimTop.value = 0; trimBottom.value = 0; trimLeft.value = 0; trimRight.value = 0
+  cropZoomOpen.value = false; gridMode.value = false
+  currentStep.value = 0
+}
+
 // ═══════ 色卡列表 ═══════
-onMounted(() => {
+onMounted(async () => {
+  // Read query params
+  const q = route.query.re_recognize
+  if (q) reRecognizeId.value = parseInt(q)
+  const fid = route.query.folder_id
+  if (fid) currentFolderId.value = parseInt(fid)
+
+  // Load color cards
   api.get('/color-cards').then(res => {
     colorCards.value = res.data
     if (colorCards.value.length > 0 && !colorCardId.value) {
       colorCardId.value = colorCards.value[0].id
     }
   }).catch(() => {})
+
+  // Re-recognize mode
+  if (reRecognizeId.value) {
+    await loadReRecognizeData()
+  }
 })
 
 </script>
@@ -599,7 +913,7 @@ onMounted(() => {
 .size-input-area { flex:1; }
 .size-input { width:100%; padding:8px; border:1px solid var(--border); border-radius:var(--radius-sm); text-align:center; font-size:18px; font-weight:600; }
 .size-btns { display:flex; flex-direction:column; gap:2px; }
-.size-btn { width:28px; height:22px; border:1px solid var(--border); border-radius:4px; background:#fff; cursor:pointer; font-size:14px; line-height:1; display:flex; align-items:center; justify-content:center; }
+.size-btn { min-width:28px; height:22px; border:1px solid var(--border); border-radius:4px; background:#fff; cursor:pointer; font-size:13px; line-height:1; display:flex; align-items:center; justify-content:center; padding:0 2px; }
 .size-btn:hover { background:var(--primary-light); }
 .mode-toggle { display:flex; align-items:center; justify-content:center; gap:10px; font-size:13px; color:var(--text-secondary); }
 .mode-toggle span.active { color:var(--primary); font-weight:600; }
@@ -614,7 +928,38 @@ onMounted(() => {
 .nudge-btn { width:40px; height:40px; border:1px solid var(--border); border-radius:4px; background:#fff; cursor:pointer; font-size:13px; display:flex; align-items:center; justify-content:center; }
 .nudge-btn:hover { background:var(--primary-light); }
 .nudge-label { font-size:11px; color:var(--text-secondary); width:40px; height:40px; display:flex; align-items:center; justify-content:center; }
-.magnifier-zone { display:flex; flex-direction:column; align-items:center; gap:8px; }
-.magnifier-label { font-size:13px; color:var(--text-secondary); }
-.magnifier-canvas { width:200px; height:200px; border:1px solid var(--border); border-radius:var(--radius-sm); background:#3A3A3A; }
+.nudge-cross { display:flex; flex-direction:column; align-items:center; gap:2px; }
+.nudge-row { display:flex; align-items:center; gap:8px; }
+.trim-val { flex: 1; text-align: center; font-size: 14px; font-weight: 600; color: var(--text); }
+.trim-unit { font-size: 12px; color: var(--text-secondary); margin-left: 2px; }
+.trim-summary { font-size: 12px; color: var(--primary); font-weight: 600; margin-top: 4px; text-align: center; }
+.magnifier-zone { display:flex; flex-direction:column; align-items:stretch; gap:8px; }
+.magnifier-label { font-size:13px; color:var(--text-secondary); text-align:left; }
+.magnifier-canvas { width:200px; height:200px; border:1px solid var(--border); border-radius:var(--radius-sm); background:#3A3A3A; align-self:center; }
+
+.recognize-mode-toggle { display: flex; gap: 8px; }
+.mode-btn { flex: 1; padding: 10px 0; border: 2px solid var(--border); border-radius: var(--radius-sm); background: #fff; cursor: pointer; font-size: 14px; transition: var(--transition); font-family: inherit; }
+.mode-btn.active { border-color: var(--primary); background: var(--primary-light); color: var(--primary); font-weight: 600; }
+.mode-btn:hover:not(.active) { border-color: #94A3B8; }
+
+/* ═══════ 裁剪放大模式 ═══════ */
+.step-header-row { display: flex; align-items: center; gap: 12px; }
+.step-header-row h2 { margin: 0; }
+.crop-zoom-overlay { position: fixed; top: 60px; left: 0; right: 0; bottom: 0; z-index: 1000; background: rgba(0,0,0,0.92); display: flex; flex-direction: column; padding: 16px; }
+.crop-zoom-container { flex: 1; min-height: 0; overflow: hidden; border-radius: var(--radius); }
+.crop-zoom-actions { display: flex; justify-content: flex-end; gap: 12px; padding: 16px 0 0; }
+
+/* ═══════ 修边工具 ═══════ */
+.trim-zone { display: flex; flex-direction: column; gap: 4px; }
+.trim-header { font-size: 13px; color: var(--text-secondary); font-weight: 600; margin-bottom: 2px; }
+.trim-hint { font-size: 12px; color: #94A3B8; margin-top: 4px; }
+.trim-controls { display: flex; flex-direction: column; gap: 6px; }
+.trim-row { display: flex; align-items: center; gap: 6px; }
+.trim-label { width: 20px; font-size: 12px; color: var(--text-secondary); text-align: center; }
+.trim-btn { width: 28px; height: 28px; border: 1px solid var(--border); border-radius: 4px; background: #fff; cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; padding: 0; line-height: 1; }
+.trim-btn:hover:not(:disabled) { background: var(--primary-light); }
+.trim-btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.trim-val { width: 28px; text-align: center; font-size: 14px; font-weight: 600; color: var(--text); }
+.trim-unit { font-size: 12px; color: var(--text-secondary); margin-left: 2px; }
+.trim-summary { font-size: 12px; color: var(--primary); font-weight: 600; margin-top: 4px; text-align: center; }
 </style>

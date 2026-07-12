@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ColorPicker Demo — Mard 221 色卡</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f0f2f5; padding: 24px;
+  }
+  h2 { font-size: 18px; margin-bottom: 16px; color: #1e293b; }
+
+  .demo-row { display: flex; gap: 24px; align-items: flex-start; margin-bottom: 24px; }
+  .preview-box {
+    width: 80px; height: 80px; border-radius: 12px;
+    border: 2px solid #e2e8f0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 600;
+    transition: background 0.15s;
+  }
+  .preview-label { font-size: 13px; color: #64748b; margin-bottom: 6px; }
+  .sel-info {
+    font-size: 13px; color: #475569; margin-top: 8px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .sel-swatch { width: 24px; height: 24px; border-radius: 4px; border: 1px solid rgba(0,0,0,0.1); }
+
+  /* ── 色卡容器 ── */
+  .cc-wrapper {
+    background: #fff; border-radius: 12px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.06);
+    padding: 12px; max-width: 1200px; overflow-x: auto;
+  }
+  .cc-grid { display: flex; gap: 10px; min-width: fit-content; }
+
+  /* ── 色系分组边框 ── */
+  .cc-group {
+    border: 1px solid #e8ecf0; border-radius: 8px;
+    padding: 6px 4px 4px;
+    position: relative;
+  }
+  .cc-group-label {
+    position: absolute; top: -9px; left: 6px;
+    background: #fff; padding: 0 4px;
+    font-size: 11px; font-weight: 700;
+    color: #94a3b8; text-transform: uppercase; letter-spacing: 0.5px;
+    line-height: 1;
+  }
+
+  /* ── 组内列 ── */
+  .cc-group-cols { display: flex; gap: 0; }
+  .cc-col { display: flex; flex-direction: column; min-width: 56px; }
+
+  /* ── 色块 ── */
+  .cc-item {
+    display: flex; padding: 1px 4px; cursor: pointer;
+    border-radius: 4px; transition: background 0.1s;
+  }
+  .cc-item:hover { background: #f1f5f9; }
+  .cc-item.selected .cc-swatch {
+    outline: 2px solid #2563eb; outline-offset: 1px;
+  }
+  .cc-swatch {
+    width: 48px; height: 32px; border-radius: 4px;
+    border: 1px solid rgba(0,0,0,0.08);
+    display: flex; align-items: center; justify-content: center;
+    transition: outline 0.1s;
+  }
+  .cc-swatch:hover {
+    outline: 2px solid #60a5fa; outline-offset: 1px;
+  }
+  .cc-code {
+    font-size: 10px; font-weight: 600; line-height: 1;
+    text-align: center; pointer-events: none;
+  }
+  .cc-item.selected .cc-swatch:hover { outline-color: #2563eb; }
+</style>
+</head>
+<body>
+<h2>ColorPicker 原型 — Mard 221 色卡</h2>
+
+<div class="demo-row">
+  <div>
+    <div class="preview-label">当前选择</div>
+    <div id="preview" class="preview-box">H1</div>
+    <div id="selInfo" class="sel-info"><span class="sel-swatch" style="background:#F7F8FA"></span> H1 #F7F8FA</div>
+  </div>
+</div>
+
+<div class="cc-wrapper"><div class="cc-grid" id="cardGrid"></div></div>
+
+<script>
+// ── DB真实数据（自然排序） ──
+const DB = [
+"A1:FAF4C8","A2:FFFFD5","A3:FEFF8B","A4:FBED56","A5:F4D738","A6:FEAC4C","A7:FE8B4C","A8:FFDA45","A9:FF995B","A10:F77C31","A11:FFDD99","A12:FE9F72","A13:FFC365","A14:FD543D","A15:FFF365","A16:FFFF9F","A17:FFE36E","A18:FEBE7D","A19:FD7C72","A20:FFD568","A21:FFE395","A22:F4F57D","A23:E6C9B7","A24:F7F8A2","A25:FFD67D","A26:FFC830",
+"B1:E6EE31","B2:63F347","B3:9EF780","B4:5DE035","B5:44C826","B6:3CB824","B7:34A320","B8:2C8F1E","B9:247C1A","B10:1D6A16","B11:1A5E14","B12:175310","B13:13480E","B14:103E0B","B15:0D3509","B16:0B2D07","B17:2ED83E","B18:26B634","B19:1F972C","B20:197B23","B21:15661D","B22:115418","B23:0E4514","B24:0B3910","B25:092E0D","B26:07250A","B27:5BEB67","B28:44C74F","B29:33A83D","B30:249030","B31:1A7C24","B32:136C1B",
+"C1:F3EFD1","C2:F2E9A4","C3:EEE27E","C4:EAD556","C5:E8CE29","C6:D9B91A","C7:CAAB17","C8:B39616","C9:9E8314","C10:8D740F","C11:EAE0B4","C12:D9C98A","C13:C3AC61","C14:A98C3E","C15:94761F","C16:7B641C","C17:C9B884","C18:AD975E","C19:90804F","C20:71623D","C21:E7DFD1","C22:D6CBAD","C23:C2B58D","C24:A99B73","C25:90825B","C26:7B6E4B","C27:6A5D3D","C28:5C502F","C29:4E4320",
+"D1:E6EFEC","D2:CDE2DA","D3:ACCFC8","D4:81B3B1","D5:5C9C9C","D6:42867F","D7:2A6F68","D8:175B57","D9:0C4742","D10:083A33","D11:C2DBD6","D12:9AC3BB","D13:75ABA3","D14:519189","D15:30776E","D16:1F635B","D17:155049","D18:0E3F38","D19:0A312A","D20:072721","D21:D9E6DF","D22:B6CFC3","D23:8FB5A5","D24:689C8A","D25:42826F","D26:2C6959",
+"E1:E3E9F5","E2:C6D2EB","E3:A1B4D8","E4:7C97C8","E5:5A7AB8","E6:3D5FA5","E7:274893","E8:19367D","E9:112A67","E10:0B1F51","E11:C5D3E9","E12:99B0D8","E13:7190C4","E14:4C71AE","E15:2D5496","E16:1A407C","E17:0F3065","E18:08234E","E19:051A3A","E20:031228","E21:BDD0EE","E22:89A8DF","E23:5B84CD","E24:3667B8",
+"F1:EEEEF2","F2:DBDCE5","F3:C4C5D5","F4:A7A9C1","F5:8B8EAD","F6:717599","F7:595D85","F8:444973","F9:323761","F10:22274F","F11:D8D9E7","F12:B6B9D2","F13:9398B9","F14:7278A1","F15:535A88","F16:3C4270","F17:2C3157","F18:1E2241","F19:141731","F20:0C0E21","F21:CFD2E6","F22:A8ACCA","F23:8086AD","F24:5C6290","F25:404675",
+"G1:F6F7F9","G2:E8EBF2","G3:D6DAE8","G4:BFC5DA","G5:A5AEC9","G6:8D97B8","G7:757FA5","G8:5E6992","G9:49537E","G10:353F6A","G11:E2E6F1","G12:C1C8DD","G13:9EA7C6","G14:7C87AF","G15:5C6797","G16:434E7C","G17:313A64","G18:222A4E","G19:161D3A","G20:0D1228","G21:1E2A48",
+"H1:F7F8FA","H2:EAF0F7","H3:D9E4F1","H4:C3D4EA","H5:A8C2E0","H6:8DAED4","H7:729BC7","H8:5888B9","H9:4175AA","H10:2F6198","H11:DDE8F4","H12:B8CFE6","H13:90B3D5","H14:6A98C3","H15:467DAE","H16:2E6598","H17:205082","H18:163C6B","H19:0F2C55","H20:0A1D3F","H21:BED6EE","H22:90B6DB","H23:5F93C5",
+"M1:FBFBFB","M2:F1F1F1","M3:E5E5E5","M4:D4D4D4","M5:BFBFBF","M6:A6A6A6","M7:8C8C8C","M8:737373","M9:595959","M10:404040","M11:CECECE","M12:ADADAD","M13:8A8A8A","M14:696969","M15:4B4B4B"
+];
+
+const colors = DB.map(s => { const [c,h] = s.split(':'); return {code:c,hex:'#'+h}; });
+function lum(h) { const r=parseInt(h.slice(1,3),16)/255,g=parseInt(h.slice(3,5),16)/255,b=parseInt(h.slice(5,7),16)/255; return 0.299*r+0.587*g+0.114*b; }
+function tc(h) { return lum(h)>0.5?'#1e293b':'#fff'; }
+function sel(el, code, hex) {
+  document.querySelectorAll('.cc-item.selected').forEach(e => e.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('preview').style.background = hex;
+  document.getElementById('preview').style.color = tc(hex);
+  document.getElementById('preview').textContent = code;
+  document.getElementById('selInfo').innerHTML = `<span class="sel-swatch" style="background:${hex}"></span> ${code} ${hex}`;
+}
+
+const MAX = 16;
+const grid = document.getElementById('cardGrid');
+const groups = {};
+colors.forEach(c => {
+  const g = c.code.match(/^[A-Z]+/)[0];
+  if (!groups[g]) groups[g] = [];
+  groups[g].push(c);
+});
+
+let html = '';
+['A','B','C','D','E','F','G','H','M'].forEach(g => {
+  const list = groups[g];
+  // Split into columns of MAX
+  let cols = '';
+  for (let i = 0; i < list.length; i += MAX) {
+    const chunk = list.slice(i, i + MAX);
+    cols += '<div class="cc-col">';
+    chunk.forEach(c => {
+      cols += `<div class="cc-item" onclick="sel(this,'${c.code}','${c.hex}')">`;
+      cols += `<div class="cc-swatch" style="background:${c.hex};color:${tc(c.hex)}">`;
+      cols += `<span class="cc-code">${c.code}</span></div></div>`;
+    });
+    cols += '</div>';
+  }
+  html += `<div class="cc-group"><span class="cc-group-label">${g}</span><div class="cc-group-cols">${cols}</div></div>`;
+});
+grid.innerHTML = html;
+
+// Default H1
+const h1 = document.querySelector('[onclick*=\"H1\"]');
+if (h1) h1.click();
+</script>
+</body>
+</html>

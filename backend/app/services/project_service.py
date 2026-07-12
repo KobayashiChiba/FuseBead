@@ -81,6 +81,15 @@ def create_project(
         raise ValueError("色卡不存在")
     color_map = _build_color_map(card)
 
+    # 3.5. 如果没有指定图库，关联到默认图库
+    if folder_id is None:
+        from ..models.folder import Folder
+        default_folder = db.query(Folder).filter(
+            Folder.user_id == user_id, Folder.is_default == True
+        ).first()
+        if default_folder:
+            folder_id = default_folder.id
+
     # 4. 提取色号（extract 内部会通过 progress_callback 报告 15-95 的进度）
     color_codes = extract(
         img, ref_cell=(ref_x, ref_y, cell_size), color_map=color_map,
@@ -96,6 +105,12 @@ def create_project(
         user_id=user_id, folder_id=folder_id, name=name,
         source_image=filename, grid_rows=rows, grid_cols=cols,
         color_card_id=color_card_id,
+        ref_x=ref_x, ref_y=ref_y, cell_size=cell_size,
+        crop_x=crop.get('x', 0) if crop else 0,
+        crop_y=crop.get('y', 0) if crop else 0,
+        crop_w=crop.get('w', 0) if crop else 0,
+        crop_h=crop.get('h', 0) if crop else 0,
+        mode=mode, merge_threshold=merge_threshold,
     )
     db.add(project)
     db.flush()
@@ -103,6 +118,18 @@ def create_project(
     db.add(grid)
     db.commit()
     db.refresh(project)
+
+    # 生成缩略图
+    from lib.beadrender import render_thumbnail
+    try:
+        thumb = render_thumbnail(color_codes, color_map)
+        if thumb:
+            grid.thumbnail = thumb
+            grid.color_count = len(set(c for row in color_codes for c in row if c))
+            db.commit()
+    except Exception:
+        pass  # 缩略图生成失败不影响主流程
+
     return project
 
 
@@ -155,6 +182,26 @@ def re_recognize(
         project.grid_rows = len(color_codes)
         project.grid_cols = len(color_codes[0]) if color_codes else 0
         project.color_card_id = color_card_id
+        project.ref_x = ref_x
+        project.ref_y = ref_y
+        project.cell_size = cell_size
+        project.crop_x = crop.get('x', 0) if crop else 0
+        project.crop_y = crop.get('y', 0) if crop else 0
+        project.crop_w = crop.get('w', 0) if crop else 0
+        project.crop_h = crop.get('h', 0) if crop else 0
+        project.mode = mode
+        project.merge_threshold = merge_threshold
+
+        # 重新生成缩略图
+        from lib.beadrender import render_thumbnail
+        try:
+            thumb = render_thumbnail(color_codes, color_map)
+            if thumb:
+                project.grid.thumbnail = thumb
+                project.grid.color_count = len(set(c for row in color_codes for c in row if c))
+        except Exception:
+            pass
+
         db.commit()
         db.refresh(project)
         return project
