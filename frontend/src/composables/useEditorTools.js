@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, reactive, computed } from 'vue'
 
 /**
  * @param {Ref[]} gridData - the mutable grid ref
