@@ -31,6 +31,7 @@
           :colors="colorCardColors"
           :modelValue="newCode"
           :cardName="cardName"
+          showEmpty
           class="rd-floating-card"
           @select="onColorCardSelect"
         />
@@ -91,8 +92,8 @@ const nearestColors = computed(() => {
   return others.slice(0, 10)
 })
 
-const newHex = computed(() => getHex(newCode.value))
-function getHex(code) { return props.colorMap[code] || '#ccc' }
+const newHex = computed(() => newCode.value ? getHex(newCode.value) : '#F0F0F0')
+function getHex(code) { return code ? (props.colorMap[code] || '#ccc') : '#F0F0F0' }
 function onColorCardSelect(code) { newCode.value = code; showColorCard.value = false }
 function confirm() { emit('confirm', { newCode: newCode.value }) }
 </script>

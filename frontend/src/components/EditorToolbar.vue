@@ -31,6 +31,7 @@
         :colors="colorCardColors"
         :modelValue="brushColor"
         :cardName="cardName"
+        showEmpty
         @update:modelValue="$emit('update:brushColor', $event)"
       />
     </div>

@@ -45,6 +45,18 @@ def _luminance(r, g, b):
     return 0.299 * r + 0.587 * g + 0.114 * b
 
 
+def _draw_checkerboard(draw, x, y, cell_size):
+    """在指定区域画棋盘格（空格子）"""
+    small = max(2, cell_size // 5)
+    for sr in range(0, cell_size, small):
+        for sc in range(0, cell_size, small):
+            is_light = ((sr // small) + (sc // small)) % 2 == 0
+            color = (248, 248, 248) if is_light else (220, 220, 220)
+            ex = min(sc + small, cell_size)
+            ey = min(sr + small, cell_size)
+            draw.rectangle([x + sc, y + sr, x + ex, y + ey], fill=color)
+
+
 def render_bead_art(color_codes, color_map, title="拼豆图纸", cell_size=60):
     """
     将色号二维表渲染为可视化拼豆图纸图片
@@ -133,10 +145,9 @@ def render_bead_art(color_codes, color_map, title="拼豆图纸", cell_size=60):
                 code = color_codes[r - 1][c - 1]
                 if code and code in color_map:
                     rgb = color_map[code]
-                    fill = (rgb[0], rgb[1], rgb[2])
+                    draw.rectangle([x, y, x + cell_size, y + cell_size], fill=(rgb[0], rgb[1], rgb[2]))
                 else:
-                    fill = (245, 245, 245)
-                draw.rectangle([x, y, x + cell_size, y + cell_size], fill=fill)
+                    _draw_checkerboard(draw, x, y, cell_size)
 
     # ── 画网格线（先画再写文字，避免文字被网格线盖住） ──
     for r in range(total_rows + 1):
@@ -273,7 +284,8 @@ def render_thumbnail(color_codes, color_map, size=256):
                 rgb = color_map[code]
                 fill = (rgb[0], rgb[1], rgb[2])
             else:
-                fill = (245, 245, 245)
+                # 棋盘格 — 缩略图用灰色代替
+                fill = (240, 240, 240)
             draw.rectangle([c, r, c + cell_px, r + cell_px], fill=fill)
 
     # 缩放到目标尺寸

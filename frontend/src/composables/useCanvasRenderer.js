@@ -110,8 +110,16 @@ export function useCanvasRenderer(canvasRef, project, gridData, colorMap, highli
           ctx.fillRect(x, y, size, size)
           ctx.globalAlpha = 1
         } else {
-          ctx.fillStyle = '#E8E8E8'; ctx.globalAlpha = 0.3
-          ctx.fillRect(x, y, size, size)
+          // 棋盘格（空格子）
+          const sq = Math.max(2, Math.ceil(s / 5))
+          for (let sr = 0; sr < size; sr += sq) {
+            for (let sc = 0; sc < size; sc += sq) {
+              const isLight = ((sr / sq | 0) + (sc / sq | 0)) % 2 === 0
+              ctx.fillStyle = isLight ? '#F8F8F8' : '#DCDCDC'
+              ctx.globalAlpha = 0.8
+              ctx.fillRect(x + sc, y + sr, Math.min(sq, size - sc), Math.min(sq, size - sr))
+            }
+          }
           ctx.globalAlpha = 1
         }
       }

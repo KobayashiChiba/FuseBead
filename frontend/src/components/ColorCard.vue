@@ -21,6 +21,13 @@
         </div>
       </div>
     </div>
+    <div class="cc-empty-row" v-if="showEmpty && selectable"
+      :class="{ selected: modelValue === '' }"
+      @click="$emit('select', '')"
+    >
+      <div class="cc-swatch cc-empty-swatch"></div>
+      <span class="cc-empty-label">空格</span>
+    </div>
   </div>
 </template>
 
@@ -32,6 +39,7 @@ const props = defineProps({
   modelValue: { type: String, default: 'H1' },
   cardName: { type: String, default: '' },
   selectable: { type: Boolean, default: true },
+  showEmpty: { type: Boolean, default: false },
 })
 defineEmits(['select'])
 
@@ -121,5 +129,23 @@ function textColor(hex) { return lum(hex) > 0.5 ? '#1e293b' : '#fff' }
 .cc-code {
   font-size: 10px; font-weight: 600; line-height: 1;
   text-align: center; pointer-events: none;
+}
+/* 空格选项 */
+.cc-empty-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 8px; margin-top: 8px;
+  border: 1px solid #e8ecf0; border-radius: 8px;
+  cursor: pointer; transition: background 0.1s;
+}
+.cc-empty-row:hover { background: #f1f5f9; }
+.cc-empty-row.selected { border-color: #2563EB; background: #eff6ff; }
+.cc-empty-swatch {
+  width: 40px; height: 26px; border-radius: 4px;
+  background-image: repeating-conic-gradient(#ddd 0% 25%, #f8f8f8 0% 50%);
+  background-size: 8px 8px;
+  border: 1px solid rgba(0,0,0,0.08);
+}
+.cc-empty-label {
+  font-size: 12px; color: #64748b; font-weight: 500;
 }
 </style>

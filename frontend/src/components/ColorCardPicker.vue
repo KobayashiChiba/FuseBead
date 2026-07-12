@@ -12,6 +12,7 @@
         :colors="colors"
         :modelValue="modelValue"
         :cardName="cardName"
+        :showEmpty="showEmpty"
         :style="panelStyle"
         class="ccp-floating"
         @select="onSelect"
@@ -28,6 +29,7 @@ const props = defineProps({
   colors: { type: Array, required: true },
   modelValue: { type: String, default: 'H1' },
   cardName: { type: String, default: '' },
+  showEmpty: { type: Boolean, default: false },
 })
 const emit = defineEmits(['update:modelValue'])
 
