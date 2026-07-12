@@ -47,7 +47,7 @@ def _luminance(r, g, b):
 
 def _draw_checkerboard(draw, x, y, cell_size):
     """在指定区域画棋盘格（空格子）"""
-    small = max(2, cell_size // 5)
+    small = max(2, cell_size // 4)
     for sr in range(0, cell_size, small):
         for sc in range(0, cell_size, small):
             is_light = ((sr // small) + (sc // small)) % 2 == 0

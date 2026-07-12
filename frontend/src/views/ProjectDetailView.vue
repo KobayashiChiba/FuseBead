@@ -312,8 +312,12 @@ async function loadProject() {
 
 function buildColorStats() {
   const countMap = {}
-  gridData.value.flat().forEach(code => { countMap[code] = (countMap[code] || 0) + 1 })
-  colorStats.value = Object.entries(countMap).map(([code, count]) => ({ code, count, hex: colorMap.value[code] || '#ccc' })).sort((a, b) => b.count - a.count)
+  gridData.value.flat().forEach(code => {
+    if (!code) return
+    const key = colorMap.value[code] ? code : 'ZZ'
+    countMap[key] = (countMap[key] || 0) + 1
+  })
+  colorStats.value = Object.entries(countMap).map(([code, count]) => ({ code, count, hex: code === 'ZZ' ? '#9B30FF' : (colorMap.value[code] || '#ccc') })).sort((a, b) => b.count - a.count)
 }
 
 // ── Resize ──

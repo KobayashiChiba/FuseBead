@@ -104,14 +104,27 @@ export function useCanvasRenderer(canvasRef, project, gridData, colorMap, highli
       for (let c = 0; c < cols; c++) {
         const code = gridData.value[r]?.[c]
         const x = c * s, y = r * s, size = s - gap
-        if (code) {
-          ctx.fillStyle = colorMap.value[code] || '#F0F0F0'
+        const known = code && colorMap.value[code]
+        if (known) {
+          ctx.fillStyle = colorMap.value[code]
           if (highlightCode.value && code !== highlightCode.value) ctx.globalAlpha = 0.25
           ctx.fillRect(x, y, size, size)
           ctx.globalAlpha = 1
+        } else if (code) {
+          // 未知色号：黑紫棋盘格
+          const sq = Math.max(2, Math.ceil(s / 4))
+          for (let sr = 0; sr < size; sr += sq) {
+            for (let sc = 0; sc < size; sc += sq) {
+              const isLight = ((sr / sq | 0) + (sc / sq | 0)) % 2 === 0
+              ctx.fillStyle = isLight ? '#3D1A5C' : '#1A0A2E'
+              ctx.globalAlpha = 0.9
+              ctx.fillRect(x + sc, y + sr, Math.min(sq, size - sc), Math.min(sq, size - sr))
+            }
+          }
+          ctx.globalAlpha = 1
         } else {
-          // 棋盘格（空格子）
-          const sq = Math.max(2, Math.ceil(s / 5))
+          // 空格：灰白棋盘格
+          const sq = Math.max(2, Math.ceil(s / 4))
           for (let sr = 0; sr < size; sr += sq) {
             for (let sc = 0; sc < size; sc += sq) {
               const isLight = ((sr / sq | 0) + (sc / sq | 0)) % 2 === 0
@@ -145,9 +158,10 @@ export function useCanvasRenderer(canvasRef, project, gridData, colorMap, highli
         for (let c = 0; c < cols; c++) {
           const code = gridData.value[r]?.[c]
           if (!code) continue
+          const known = !!colorMap.value[code]
           if (highlightCode.value && code !== highlightCode.value) continue
           if (showCounts && highlightCode.value && code === highlightCode.value) continue
-          const hex = colorMap.value[code] || '#F0F0F0'
+          const hex = colorMap.value[code] || '#9B30FF'
           const rr = parseInt(hex.slice(1, 3), 16)
           const gg = parseInt(hex.slice(3, 5), 16)
           const bb = parseInt(hex.slice(5, 7), 16)
