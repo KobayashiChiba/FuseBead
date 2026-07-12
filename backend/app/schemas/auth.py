@@ -28,6 +28,11 @@ class ResetPasswordRequest(BaseModel):
     verify_code: str
 
 
+class ChangePasswordRequest(BaseModel):
+    old_password: str
+    new_password: str = Field(min_length=6, max_length=128)
+
+
 # 延迟导入避免循环引用
 from .user import UserResponse  # noqa: E402, F811
 TokenResponse.model_rebuild()

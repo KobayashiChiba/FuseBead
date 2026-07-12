@@ -20,3 +20,13 @@ class UserResponse(BaseModel):
 class UserUpdateRequest(BaseModel):
     nickname: Optional[str] = Field(default=None, min_length=1, max_length=64)
     avatar_url: Optional[str] = Field(default=None, max_length=256)
+
+
+class UserSettingsResponse(BaseModel):
+    default_color_card_id: Optional[int] = None
+
+    model_config = {"from_attributes": True}
+
+
+class UserSettingsUpdateRequest(BaseModel):
+    default_color_card_id: Optional[int] = None

@@ -7,6 +7,18 @@
     </div>
     <div class="sidebar-divider"></div>
     <div class="sidebar-section">
+      <div class="sidebar-label">导航</div>
+      <ul class="sidebar-list">
+        <li
+          :class="['sidebar-item', { active: $route.path === '/settings' }]"
+          @click="$router.push('/settings')"
+        >
+          <span class="sidebar-item-name">⚙️ 设置</span>
+        </li>
+      </ul>
+    </div>
+    <div class="sidebar-divider"></div>
+    <div class="sidebar-section">
       <div class="sidebar-label">我的图库</div>
       <ul class="sidebar-list">
         <li
@@ -45,7 +57,7 @@ function goGallery(id) {
   width: 280px; min-height: calc(100vh - 60px);
   background: var(--bg-sidebar); border-right: 1px solid var(--border);
   padding: 24px 16px; position: fixed; top: 60px; left: 0;
-  overflow-y: auto;
+  overflow-y: auto; z-index: 10;
 }
 .sidebar-user { text-align: center; margin-bottom: 20px; }
 .sidebar-avatar {

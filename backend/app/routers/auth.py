@@ -13,7 +13,7 @@ from ..core.security import (
 from ..models.user import User
 from ..models.invite_code import InviteCode
 from ..models.folder import Folder
-from ..schemas.auth import RegisterRequest, LoginRequest, TokenResponse, ResetPasswordRequest
+from ..schemas.auth import RegisterRequest, LoginRequest, TokenResponse, ResetPasswordRequest, ChangePasswordRequest
 from ..schemas.user import UserResponse
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
@@ -121,6 +121,20 @@ def reset_password(body: ResetPasswordRequest, db: Session = Depends(get_db)):
     user.reset_code_expires = None
     db.commit()
     return {"message": "密码已重置"}
+
+
+@router.patch("/password")
+def change_password(
+    body: ChangePasswordRequest,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """修改密码（需验证当前密码）"""
+    if not verify_password(body.old_password, current_user.password_hash):
+        raise HTTPException(status_code=400, detail="当前密码错误")
+    current_user.password_hash = hash_password(body.new_password)
+    db.commit()
+    return {"message": "密码已修改"}
 
 
 @router.get("/me", response_model=UserResponse)

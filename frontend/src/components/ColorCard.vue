@@ -51,7 +51,7 @@ const groups = computed(() => {
     if (!map[letter]) map[letter] = []
     map[letter].push(c)
   }
-  return ['A','B','C','D','E','F','G','H','M']
+  return Object.keys(map).sort()
     .filter(l => map[l])
     .map(l => {
       const list = map[l]

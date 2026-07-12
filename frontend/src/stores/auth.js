@@ -5,6 +5,7 @@ import api from '@/utils/api'
 export const useAuthStore = defineStore('auth', () => {
   const token = ref(localStorage.getItem('token') || '')
   const user = ref(null)
+  const settings = ref(null)
 
   const isLoggedIn = computed(() => !!token.value)
   const isAdmin = computed(() => user.value?.is_admin ?? false)
@@ -35,11 +36,49 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
+  async function updateProfile(data) {
+    const res = await api.patch('/users/me', data)
+    user.value = res.data
+    return res.data
+  }
+
+  async function changePassword(oldPassword, newPassword) {
+    const res = await api.patch('/auth/password', {
+      old_password: oldPassword,
+      new_password: newPassword,
+    })
+    return res.data
+  }
+
+  async function fetchSettings() {
+    if (!token.value) return
+    try {
+      const res = await api.get('/users/me/settings')
+      settings.value = res.data
+      return res.data
+    } catch {
+      settings.value = { default_color_card_id: null }
+    }
+  }
+
+  async function updateSettings(data) {
+    const res = await api.patch('/users/me/settings', data)
+    settings.value = res.data
+    return res.data
+  }
+
   function logout() {
     token.value = ''
     user.value = null
+    settings.value = null
     localStorage.removeItem('token')
   }
 
-  return { token, user, isLoggedIn, isAdmin, login, register, fetchMe, logout }
+  return {
+    token, user, settings,
+    isLoggedIn, isAdmin,
+    login, register, fetchMe, logout,
+    updateProfile, changePassword,
+    fetchSettings, updateSettings,
+  }
 })

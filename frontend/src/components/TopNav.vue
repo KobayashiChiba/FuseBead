@@ -6,7 +6,7 @@
       <span class="topnav-title">{{ title }}</span>
     </div>
     <div class="topnav-right">
-      <div class="topnav-user">
+      <div class="topnav-user" @click="$router.push('/settings')">
         <img :src="avatar || '/default-avatar.png'" class="topnav-avatar" alt="" />
         <span class="topnav-name">{{ nickname || '用户' }}</span>
       </div>

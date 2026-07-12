@@ -35,6 +35,12 @@ const routes = [
     component: () => import('@/views/AdminView.vue'),
     meta: { layout: 'main', requireAuth: true, requireAdmin: true },
   },
+  {
+    path: '/settings',
+    name: 'Settings',
+    component: () => import('@/views/SettingsView.vue'),
+    meta: { layout: 'main', requireAuth: true },
+  },
 
   // Editor (topnav only, no sidebar)
   {
